@@ -27,9 +27,9 @@ function rp_header(string $title, string $context = 'public'): void
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title><?= e($title . ' — ' . $appName) ?></title>
-    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=3">
+    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=4">
 </head>
-<body class="<?= e($context) ?><?= $script === 'board.php' ? ' board-page' : '' ?>">
+<body class="<?= e($context) ?><?= in_array($script, ['board.php', 'plan.php'], true) ? ' board-page' : '' ?>">
 <header class="topbar">
     <div class="wrap topbar-inner">
         <div class="brand">
@@ -59,12 +59,31 @@ function rp_header(string $title, string $context = 'public'): void
 </header>
 <main class="wrap">
     <?php if ($context === 'admin' && $admin !== null): ?>
+        <?php
+        $isRequests = in_array($script, ['index.php', 'view.php', 'board.php'], true);
+        $isPlan     = in_array($script, ['plan.php', 'plan-edit.php'], true);
+        ?>
         <nav class="admin-tabs" aria-label="<?= e(__('nav.admin')) ?>">
-            <a class="admin-tab<?= in_array($script, ['index.php', 'view.php'], true) ? ' active' : '' ?>"
-               href="<?= e(rp_url('admin/index.php')) ?>"><?= e(__('admin.list_title')) ?></a>
-            <a class="admin-tab<?= $script === 'board.php' ? ' active' : '' ?>"
-               href="<?= e(rp_url('admin/board.php')) ?>"><?= e(__('admin.board_title')) ?></a>
+            <a class="admin-tab<?= $isRequests ? ' active' : '' ?>"
+               href="<?= e(rp_url('admin/index.php')) ?>"><?= e(__('admin.section.requests')) ?></a>
+            <a class="admin-tab<?= $isPlan ? ' active' : '' ?>"
+               href="<?= e(rp_url('admin/plan.php')) ?>"><?= e(__('admin.section.plan')) ?></a>
         </nav>
+        <?php if ($isRequests): ?>
+            <nav class="admin-subtabs">
+                <a class="admin-tab<?= in_array($script, ['index.php', 'view.php'], true) ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/index.php')) ?>"><?= e(__('admin.list_title')) ?></a>
+                <a class="admin-tab<?= $script === 'board.php' ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/board.php')) ?>"><?= e(__('admin.board_title')) ?></a>
+            </nav>
+        <?php elseif ($isPlan): ?>
+            <nav class="admin-subtabs">
+                <a class="admin-tab<?= $script === 'plan.php' ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/plan.php')) ?>"><?= e(__('content.calendar')) ?></a>
+                <a class="admin-tab<?= $script === 'plan-edit.php' && empty($_GET['id']) ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/plan-edit.php')) ?>"><?= e(__('content.new')) ?></a>
+            </nav>
+        <?php endif; ?>
     <?php endif; ?>
     <?php foreach (rp_take_flashes() as $flash): ?>
         <div class="alert alert-<?= e($flash['type']) ?>"><?= e($flash['message']) ?></div>

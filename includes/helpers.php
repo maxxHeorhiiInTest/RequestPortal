@@ -124,6 +124,75 @@ function rp_local_day_to_utc(string $ymd, bool $endOfDay): string
     return $local->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
 }
 
+function rp_app_timezone(): DateTimeZone
+{
+    try {
+        return new DateTimeZone((string) rp_config('app.timezone', 'Europe/Kyiv'));
+    } catch (Exception) {
+        return new DateTimeZone('Europe/Kyiv');
+    }
+}
+
+/** Parse datetime-local (Y-m-d\TH:i) in the app timezone → UTC SQL DATETIME. */
+function rp_local_input_to_utc(string $local): ?string
+{
+    $local = str_replace(' ', 'T', trim($local));
+    $tz    = rp_app_timezone();
+    $dt    = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $local, $tz);
+    if (!$dt || $dt->format('Y-m-d\TH:i') !== substr($local, 0, 16)) {
+        $dt = DateTimeImmutable::createFromFormat('Y-m-d\TH:i:s', $local, $tz);
+    }
+    if (!$dt) {
+        return null;
+    }
+
+    return $dt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+}
+
+/** UTC SQL DATETIME → value for <input type="datetime-local">. */
+function rp_utc_to_local_input(?string $sqlDateTime): string
+{
+    if (!$sqlDateTime) {
+        return '';
+    }
+    try {
+        $utc = new DateTimeImmutable($sqlDateTime, new DateTimeZone('UTC'));
+
+        return $utc->setTimezone(rp_app_timezone())->format('Y-m-d\TH:i');
+    } catch (Exception) {
+        return '';
+    }
+}
+
+function rp_format_time(?string $sqlDateTime): string
+{
+    if (!$sqlDateTime) {
+        return '';
+    }
+    try {
+        $utc = new DateTimeImmutable($sqlDateTime, new DateTimeZone('UTC'));
+
+        return $utc->setTimezone(rp_app_timezone())->format('H:i');
+    } catch (Exception) {
+        return '';
+    }
+}
+
+/** Local calendar date Y-m-d of a UTC DATETIME. */
+function rp_local_ymd(?string $sqlDateTime): string
+{
+    if (!$sqlDateTime) {
+        return '';
+    }
+    try {
+        $utc = new DateTimeImmutable($sqlDateTime, new DateTimeZone('UTC'));
+
+        return $utc->setTimezone(rp_app_timezone())->format('Y-m-d');
+    } catch (Exception) {
+        return '';
+    }
+}
+
 /** @return list<string> */
 function rp_statuses(): array
 {

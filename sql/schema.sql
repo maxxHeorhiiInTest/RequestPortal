@@ -69,3 +69,21 @@ CREATE TABLE IF NOT EXISTS rp_admin_users (
     PRIMARY KEY (id),
     UNIQUE KEY uniq_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rp_content_items (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    event_at DATETIME NOT NULL,
+    department VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    responsible VARCHAR(160) NOT NULL,
+    extra_info TEXT NULL,
+    channels TEXT NULL,
+    status ENUM('draft', 'planned', 'preparing', 'published', 'cancelled') NOT NULL DEFAULT 'draft',
+    created_by VARCHAR(160) NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_event_at (event_at),
+    KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

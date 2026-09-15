@@ -6,6 +6,7 @@ const RP_TABLE_REQUESTS = 'rp_requests';
 const RP_TABLE_FILES    = 'rp_request_files';
 const RP_TABLE_HISTORY  = 'rp_request_history';
 const RP_TABLE_ADMINS   = 'rp_admin_users';
+const RP_TABLE_CONTENT  = 'rp_content_items';
 
 /**
  * Shared PDO connection.
@@ -32,6 +33,7 @@ function rp_db(): PDO
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
         rp_apply_db_timezone($pdo);
+        rp_ensure_schema($pdo);
     } catch (PDOException $exception) {
         if (rp_config('app.debug', false)) {
             rp_abort(500, 'Database connection failed: ' . $exception->getMessage());
@@ -127,7 +129,39 @@ function rp_schema(): array
                 PRIMARY KEY (id),
                 UNIQUE KEY uniq_username (username)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_CONTENT => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_CONTENT . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                title VARCHAR(255) NOT NULL,
+                event_at DATETIME NOT NULL,
+                department VARCHAR(255) NOT NULL,
+                description TEXT NOT NULL,
+                responsible VARCHAR(160) NOT NULL,
+                extra_info TEXT NULL,
+                channels TEXT NULL,
+                status ENUM(\'draft\', \'planned\', \'preparing\', \'published\', \'cancelled\') NOT NULL DEFAULT \'draft\',
+                created_by VARCHAR(160) NULL,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_event_at (event_at),
+                KEY idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
     ];
+}
+
+/** Create any missing tables (safe to run on every request). */
+function rp_ensure_schema(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    foreach (rp_schema() as $ddl) {
+        $pdo->exec($ddl);
+    }
+    $done = true;
 }
 
 /**
