@@ -1,0 +1,47 @@
+# Request Portal — Apache configuration.
+# UA: Файл працює на Apache. Для Nginx див. приклад у README.md.
+# EN: Apache only. For Nginx see the example in README.md.
+
+DirectoryIndex index.php
+
+# Deny direct access to code, storage and configuration.
+RedirectMatch 404 (?i)^/?.*/(includes|storage|sql)/
+RedirectMatch 404 (?i)^/?.*/config(\.sample)?\.php$
+
+<FilesMatch "^(config\.php|config\.sample\.php|\.user\.ini|\.gitignore|README\.md)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+</IfModule>
+
+# UA: Ліміти та приховування попереджень PHP (mod_php). Для PHP-FPM/CGI див. .user.ini.
+# EN: Limits and hiding of PHP warnings (mod_php). For PHP-FPM/CGI see .user.ini.
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_flag display_startup_errors Off
+    php_flag log_errors On
+    php_value upload_max_filesize 200M
+    php_value post_max_size 220M
+    php_value max_file_uploads 20
+    php_value max_execution_time 300
+    php_value memory_limit 256M
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag display_errors Off
+    php_flag display_startup_errors Off
+    php_flag log_errors On
+    php_value upload_max_filesize 200M
+    php_value post_max_size 220M
+    php_value max_file_uploads 20
+    php_value max_execution_time 300
+    php_value memory_limit 256M
+</IfModule>

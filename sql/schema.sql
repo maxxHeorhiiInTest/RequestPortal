@@ -1,0 +1,71 @@
+-- Request Portal — MySQL schema.
+-- UA: Імпортуйте цей файл, якщо не хочете користуватися install.php
+--     (адміністратора тоді створіть вручну, див. README.md).
+-- EN: Import this file if you prefer not to run install.php
+--     (create the administrator manually afterwards, see README.md).
+
+SET NAMES utf8mb4;
+
+CREATE TABLE IF NOT EXISTS rp_requests (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_code VARCHAR(20) NOT NULL,
+    type ENUM('new', 'update') NOT NULL,
+    target_location VARCHAR(1000) NOT NULL,
+    description TEXT NOT NULL,
+    extra_comment TEXT NULL,
+    requester_name VARCHAR(160) NOT NULL,
+    requester_contact VARCHAR(255) NOT NULL,
+    status ENUM('new', 'in_progress', 'done', 'rejected') NOT NULL DEFAULT 'new',
+    admin_note TEXT NULL,
+    lang CHAR(2) NOT NULL DEFAULT 'uk',
+    ip_address VARCHAR(45) NULL,
+    user_agent VARCHAR(255) NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uniq_public_code (public_code),
+    KEY idx_status (status),
+    KEY idx_type (type),
+    KEY idx_created_at (created_at),
+    KEY idx_ip_created (ip_address, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rp_request_files (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    request_id INT UNSIGNED NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    stored_path VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(120) NOT NULL,
+    size_bytes BIGINT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_request (request_id),
+    CONSTRAINT fk_files_request FOREIGN KEY (request_id)
+        REFERENCES rp_requests (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rp_request_history (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    request_id INT UNSIGNED NOT NULL,
+    action VARCHAR(40) NOT NULL,
+    old_value VARCHAR(255) NULL,
+    new_value VARCHAR(255) NULL,
+    note TEXT NULL,
+    actor VARCHAR(160) NOT NULL,
+    actor_ip VARCHAR(45) NULL,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_request_created (request_id, created_at),
+    CONSTRAINT fk_history_request FOREIGN KEY (request_id)
+        REFERENCES rp_requests (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rp_admin_users (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    username VARCHAR(80) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at DATETIME NOT NULL,
+    last_login_at DATETIME NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uniq_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
