@@ -7,6 +7,9 @@ const RP_TABLE_FILES    = 'rp_request_files';
 const RP_TABLE_HISTORY  = 'rp_request_history';
 const RP_TABLE_ADMINS   = 'rp_admin_users';
 const RP_TABLE_CONTENT  = 'rp_content_items';
+const RP_TABLE_FEEDBACK = 'rp_feedback';
+const RP_TABLE_FEEDBACK_FILES = 'rp_feedback_files';
+const RP_TABLE_FEEDBACK_HISTORY = 'rp_feedback_history';
 
 /**
  * Shared PDO connection.
@@ -70,6 +73,8 @@ function rp_schema(): array
                 target_location VARCHAR(1000) NOT NULL,
                 description TEXT NOT NULL,
                 extra_comment TEXT NULL,
+                faculty VARCHAR(255) NOT NULL DEFAULT \'\',
+                department VARCHAR(255) NOT NULL DEFAULT \'\',
                 requester_name VARCHAR(160) NOT NULL,
                 requester_contact VARCHAR(255) NOT NULL,
                 status ENUM(\'new\', \'in_progress\', \'done\', \'rejected\') NOT NULL DEFAULT \'new\',
@@ -148,6 +153,60 @@ function rp_schema(): array
                 KEY idx_event_at (event_at),
                 KEY idx_status (status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_FEEDBACK => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_FEEDBACK . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                public_code VARCHAR(20) NOT NULL,
+                message TEXT NOT NULL,
+                faculty VARCHAR(255) NOT NULL DEFAULT \'\',
+                department VARCHAR(255) NOT NULL DEFAULT \'\',
+                requester_name VARCHAR(160) NOT NULL,
+                requester_contact VARCHAR(255) NOT NULL,
+                status ENUM(\'new\', \'in_progress\', \'done\', \'rejected\') NOT NULL DEFAULT \'new\',
+                admin_note TEXT NULL,
+                lang CHAR(2) NOT NULL DEFAULT \'uk\',
+                ip_address VARCHAR(45) NULL,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uniq_feedback_code (public_code),
+                KEY idx_status (status),
+                KEY idx_created_at (created_at),
+                KEY idx_ip_created (ip_address, created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_FEEDBACK_FILES => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_FEEDBACK_FILES . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                feedback_id INT UNSIGNED NOT NULL,
+                original_name VARCHAR(255) NOT NULL,
+                stored_path VARCHAR(255) NOT NULL,
+                mime_type VARCHAR(120) NOT NULL,
+                size_bytes BIGINT UNSIGNED NOT NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_feedback (feedback_id),
+                CONSTRAINT fk_feedback_files FOREIGN KEY (feedback_id)
+                    REFERENCES ' . RP_TABLE_FEEDBACK . ' (id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_FEEDBACK_HISTORY => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_FEEDBACK_HISTORY . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                feedback_id INT UNSIGNED NOT NULL,
+                action VARCHAR(40) NOT NULL,
+                old_value VARCHAR(255) NULL,
+                new_value VARCHAR(255) NULL,
+                note TEXT NULL,
+                actor VARCHAR(160) NOT NULL,
+                actor_ip VARCHAR(45) NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_feedback_created (feedback_id, created_at),
+                CONSTRAINT fk_feedback_history FOREIGN KEY (feedback_id)
+                    REFERENCES ' . RP_TABLE_FEEDBACK . ' (id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
     ];
 }
 
@@ -161,7 +220,38 @@ function rp_ensure_schema(PDO $pdo): void
     foreach (rp_schema() as $ddl) {
         $pdo->exec($ddl);
     }
+    rp_ensure_columns($pdo);
     $done = true;
+}
+
+function rp_table_has_column(PDO $pdo, string $table, string $column): bool
+{
+    $stmt = $pdo->query('SHOW COLUMNS FROM `' . $table . '` LIKE ' . $pdo->quote($column));
+
+    return (bool) $stmt->fetch();
+}
+
+/** Add columns introduced after the initial install. */
+function rp_ensure_columns(PDO $pdo): void
+{
+    $columns = [
+        RP_TABLE_REQUESTS => [
+            'faculty'    => "VARCHAR(255) NOT NULL DEFAULT ''",
+            'department' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        ],
+        RP_TABLE_FEEDBACK => [
+            'faculty'    => "VARCHAR(255) NOT NULL DEFAULT ''",
+            'department' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        ],
+    ];
+
+    foreach ($columns as $table => $defs) {
+        foreach ($defs as $name => $ddl) {
+            if (!rp_table_has_column($pdo, $table, $name)) {
+                $pdo->exec('ALTER TABLE `' . $table . '` ADD COLUMN `' . $name . '` ' . $ddl);
+            }
+        }
+    }
 }
 
 /**
@@ -240,6 +330,79 @@ function rp_recent_request_count(PDO $pdo, string $ip): int
 
     $stmt = $pdo->prepare(
         'SELECT COUNT(*) FROM ' . RP_TABLE_REQUESTS . '
+         WHERE ip_address = :ip AND created_at >= (NOW() - INTERVAL 1 HOUR)'
+    );
+    $stmt->execute(['ip' => $ip]);
+
+    return (int) $stmt->fetchColumn();
+}
+
+function rp_log_feedback_history(
+    PDO $pdo,
+    int $feedbackId,
+    string $action,
+    ?string $oldValue = null,
+    ?string $newValue = null,
+    ?string $note = null,
+    ?string $actor = null
+): void {
+    $stmt = $pdo->prepare(
+        'INSERT INTO ' . RP_TABLE_FEEDBACK_HISTORY . '
+            (feedback_id, action, old_value, new_value, note, actor, actor_ip, created_at)
+         VALUES (:feedback_id, :action, :old_value, :new_value, :note, :actor, :actor_ip, NOW())'
+    );
+    $stmt->execute([
+        'feedback_id' => $feedbackId,
+        'action'      => $action,
+        'old_value'   => $oldValue,
+        'new_value'   => $newValue,
+        'note'        => $note !== null && $note !== '' ? $note : null,
+        'actor'       => $actor ?? 'system',
+        'actor_ip'    => rp_client_ip(),
+    ]);
+}
+
+/** @return array<string,mixed>|null */
+function rp_find_feedback(PDO $pdo, int $id): ?array
+{
+    $stmt = $pdo->prepare('SELECT * FROM ' . RP_TABLE_FEEDBACK . ' WHERE id = :id');
+    $stmt->execute(['id' => $id]);
+    $row = $stmt->fetch();
+
+    return $row ?: null;
+}
+
+/** @return list<array<string,mixed>> */
+function rp_feedback_files(PDO $pdo, int $feedbackId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT * FROM ' . RP_TABLE_FEEDBACK_FILES . ' WHERE feedback_id = :id ORDER BY id'
+    );
+    $stmt->execute(['id' => $feedbackId]);
+
+    return $stmt->fetchAll();
+}
+
+/** @return list<array<string,mixed>> */
+function rp_feedback_history(PDO $pdo, int $feedbackId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT * FROM ' . RP_TABLE_FEEDBACK_HISTORY . '
+         WHERE feedback_id = :id ORDER BY created_at DESC, id DESC'
+    );
+    $stmt->execute(['id' => $feedbackId]);
+
+    return $stmt->fetchAll();
+}
+
+function rp_recent_feedback_count(PDO $pdo, string $ip): int
+{
+    if ($ip === '') {
+        return 0;
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM ' . RP_TABLE_FEEDBACK . '
          WHERE ip_address = :ip AND created_at >= (NOW() - INTERVAL 1 HOUR)'
     );
     $stmt->execute(['ip' => $ip]);

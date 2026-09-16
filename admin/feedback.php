@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin: request list with filters, search and pagination.
+ * Admin: questions / suggestions list.
  */
 
 declare(strict_types=1);
@@ -11,9 +11,8 @@ require dirname(__DIR__) . '/includes/layout.php';
 
 rp_require_admin();
 
-const RP_PER_PAGE = 25;
+const RP_FEEDBACK_PER_PAGE = 25;
 
-/** Accept only YYYY-MM-DD, otherwise ''. */
 $validDate = static function (mixed $value): string {
     $value = is_string($value) ? trim($value) : '';
     $date  = DateTimeImmutable::createFromFormat('Y-m-d', $value);
@@ -23,7 +22,6 @@ $validDate = static function (mixed $value): string {
 
 $filters = [
     'status'    => in_array($_GET['status'] ?? '', rp_statuses(), true) ? (string) $_GET['status'] : '',
-    'type'      => in_array($_GET['type'] ?? '', rp_request_types(), true) ? (string) $_GET['type'] : '',
     'q'         => rp_clean_string($_GET['q'] ?? '', 120),
     'date_from' => $validDate($_GET['date_from'] ?? ''),
     'date_to'   => $validDate($_GET['date_to'] ?? ''),
@@ -33,77 +31,60 @@ $where  = [];
 $params = [];
 
 if ($filters['status'] !== '') {
-    $where[]           = 'r.status = :status';
-    $params['status']  = $filters['status'];
-}
-if ($filters['type'] !== '') {
-    $where[]        = 'r.type = :type';
-    $params['type'] = $filters['type'];
+    $where[]          = 'f.status = :status';
+    $params['status'] = $filters['status'];
 }
 if ($filters['q'] !== '') {
-    // Native prepared statements bind each placeholder once, so every searched
-    // column gets its own parameter.
     $like    = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $filters['q']) . '%';
-    $columns = [
-        'r.public_code',
-        'r.requester_name',
-        'r.requester_contact',
-        'r.faculty',
-        'r.department',
-        'r.target_location',
-        'r.description',
-        'r.extra_comment',
-    ];
-
-    $likeParts = [];
+    $columns = ['f.public_code', 'f.requester_name', 'f.requester_contact', 'f.faculty', 'f.department', 'f.message'];
+    $parts   = [];
     foreach ($columns as $index => $column) {
-        $likeParts[]           = $column . ' LIKE :q' . $index . " ESCAPE '\\\\'";
-        $params['q' . $index]  = $like;
+        $parts[]              = $column . ' LIKE :q' . $index . " ESCAPE '\\\\'";
+        $params['q' . $index] = $like;
     }
-    $where[] = '(' . implode(' OR ', $likeParts) . ')';
+    $where[] = '(' . implode(' OR ', $parts) . ')';
 }
 if ($filters['date_from'] !== '') {
-    $where[]             = 'r.created_at >= :date_from';
+    $where[]             = 'f.created_at >= :date_from';
     $params['date_from'] = rp_local_day_to_utc($filters['date_from'], false);
 }
 if ($filters['date_to'] !== '') {
-    $where[]           = 'r.created_at <= :date_to';
+    $where[]           = 'f.created_at <= :date_to';
     $params['date_to'] = rp_local_day_to_utc($filters['date_to'], true);
 }
 
 $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 $pdo      = rp_db();
 
-$countStmt = $pdo->prepare('SELECT COUNT(*) FROM ' . RP_TABLE_REQUESTS . ' r' . $whereSql);
+$countStmt = $pdo->prepare('SELECT COUNT(*) FROM ' . RP_TABLE_FEEDBACK . ' f' . $whereSql);
 $countStmt->execute($params);
 $total = (int) $countStmt->fetchColumn();
 
-$pages = max(1, (int) ceil($total / RP_PER_PAGE));
+$pages = max(1, (int) ceil($total / RP_FEEDBACK_PER_PAGE));
 $page  = max(1, min($pages, (int) ($_GET['page'] ?? 1)));
 
 $listStmt = $pdo->prepare(
-    'SELECT r.*, (SELECT COUNT(*) FROM ' . RP_TABLE_FILES . ' f WHERE f.request_id = r.id) AS file_count
-     FROM ' . RP_TABLE_REQUESTS . ' r'
+    'SELECT f.*, (SELECT COUNT(*) FROM ' . RP_TABLE_FEEDBACK_FILES . ' x WHERE x.feedback_id = f.id) AS file_count
+     FROM ' . RP_TABLE_FEEDBACK . ' f'
     . $whereSql .
-    ' ORDER BY r.created_at DESC, r.id DESC
-      LIMIT ' . RP_PER_PAGE . ' OFFSET ' . (($page - 1) * RP_PER_PAGE)
+    ' ORDER BY f.created_at DESC, f.id DESC
+      LIMIT ' . RP_FEEDBACK_PER_PAGE . ' OFFSET ' . (($page - 1) * RP_FEEDBACK_PER_PAGE)
 );
 $listStmt->execute($params);
-$requests = $listStmt->fetchAll();
+$rows = $listStmt->fetchAll();
 
-/** Build a list URL preserving the active filters. */
 $pageUrl = static function (int $target) use ($filters): string {
-    $query = array_filter($filters, static fn (string $value): bool => $value !== '');
+    $query         = array_filter($filters, static fn (string $value): bool => $value !== '');
     $query['page'] = $target;
 
-    return rp_url('admin/index.php') . '?' . http_build_query($query);
+    return rp_url('admin/feedback.php') . '?' . http_build_query($query);
 };
 
-rp_header(__('admin.list_title'), 'admin');
+rp_header(__('admin.section.feedback'), 'admin');
 ?>
 <div class="card">
-    <h1><?= e(__('admin.list_title')) ?></h1>
-    <form method="get" action="<?= e(rp_url('admin/index.php')) ?>" class="filters">
+    <h1><?= e(__('admin.section.feedback')) ?></h1>
+    <form method="get" action="<?= e(rp_url('admin/feedback.php')) ?>" class="filters">
         <div class="field">
             <label for="q"><?= e(__('admin.filter.query')) ?></label>
             <input type="text" id="q" name="q" maxlength="120" value="<?= e($filters['q']) ?>"
@@ -121,17 +102,6 @@ rp_header(__('admin.list_title'), 'admin');
             </select>
         </div>
         <div class="field">
-            <label for="type"><?= e(__('admin.filter.type')) ?></label>
-            <select id="type" name="type">
-                <option value=""><?= e(__('common.all')) ?></option>
-                <?php foreach (rp_request_types() as $type): ?>
-                    <option value="<?= e($type) ?>" <?= $filters['type'] === $type ? 'selected' : '' ?>>
-                        <?= e(rp_type_label($type)) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="field">
             <label for="date_from"><?= e(__('admin.filter.date_from')) ?></label>
             <input type="date" id="date_from" name="date_from" value="<?= e($filters['date_from']) ?>">
         </div>
@@ -141,16 +111,15 @@ rp_header(__('admin.list_title'), 'admin');
         </div>
         <div class="field actions">
             <button type="submit" class="btn btn-primary"><?= e(__('common.search')) ?></button>
-            <a class="btn" href="<?= e(rp_url('admin/index.php')) ?>"><?= e(__('common.reset')) ?></a>
+            <a class="btn" href="<?= e(rp_url('admin/feedback.php')) ?>"><?= e(__('common.reset')) ?></a>
         </div>
     </form>
 </div>
 
 <div class="card">
-    <p class="muted"><?= e(__('admin.total', $total)) ?></p>
-
-    <?php if (!$requests): ?>
-        <p><?= e(__('admin.table.empty')) ?></p>
+    <p class="muted"><?= e(__('admin.feedback.total', $total)) ?></p>
+    <?php if (!$rows): ?>
+        <p><?= e(__('admin.feedback.empty')) ?></p>
     <?php else: ?>
         <div class="table-wrap">
             <table class="list">
@@ -158,8 +127,7 @@ rp_header(__('admin.list_title'), 'admin');
                 <tr>
                     <th><?= e(__('admin.table.code')) ?></th>
                     <th><?= e(__('admin.table.created')) ?></th>
-                    <th><?= e(__('admin.table.type')) ?></th>
-                    <th><?= e(__('admin.table.target')) ?></th>
+                    <th><?= e(__('feedback.message')) ?></th>
                     <th><?= e(__('admin.table.requester')) ?></th>
                     <th><?= e(__('admin.table.files')) ?></th>
                     <th><?= e(__('admin.table.status')) ?></th>
@@ -167,31 +135,30 @@ rp_header(__('admin.list_title'), 'admin');
                 </tr>
                 </thead>
                 <tbody>
-                <?php foreach ($requests as $request): ?>
+                <?php foreach ($rows as $row): ?>
                     <tr>
-                        <td class="code-cell"><?= e((string) $request['public_code']) ?></td>
-                        <td><?= e(rp_format_datetime((string) $request['created_at'])) ?></td>
-                        <td><?= e(rp_type_label((string) $request['type'])) ?></td>
-                        <td><?= e(mb_strimwidth((string) $request['target_location'], 0, 60, '…', 'UTF-8')) ?></td>
+                        <td class="code-cell"><?= e((string) $row['public_code']) ?></td>
+                        <td><?= e(rp_format_datetime((string) $row['created_at'])) ?></td>
+                        <td><?= e(mb_strimwidth((string) $row['message'], 0, 80, '…', 'UTF-8')) ?></td>
                         <td>
-                            <?= e((string) $request['requester_name']) ?>
-                            <small class="meta"><?= e((string) $request['requester_contact']) ?></small>
+                            <?= e((string) $row['requester_name']) ?>
+                            <small class="meta"><?= e((string) $row['requester_contact']) ?></small>
                             <?php
-                            $unit = trim((string) ($request['faculty'] ?? '') . ' / ' . (string) ($request['department'] ?? ''), ' /');
+                            $unit = trim((string) ($row['faculty'] ?? '') . ' / ' . (string) ($row['department'] ?? ''), ' /');
                             if ($unit !== ''):
                             ?>
                                 <small class="meta"><?= e($unit) ?></small>
                             <?php endif; ?>
                         </td>
-                        <td><?= (int) $request['file_count'] ?></td>
+                        <td><?= (int) $row['file_count'] ?></td>
                         <td>
-                            <span class="badge status-<?= e((string) $request['status']) ?>">
-                                <?= e(rp_status_label((string) $request['status'])) ?>
+                            <span class="badge status-<?= e((string) $row['status']) ?>">
+                                <?= e(rp_status_label((string) $row['status'])) ?>
                             </span>
                         </td>
                         <td>
                             <a class="btn btn-small"
-                               href="<?= e(rp_url('admin/view.php?id=' . (int) $request['id'])) ?>">
+                               href="<?= e(rp_url('admin/feedback-view.php?id=' . (int) $row['id'])) ?>">
                                 <?= e(__('admin.open')) ?>
                             </a>
                         </td>
@@ -200,7 +167,6 @@ rp_header(__('admin.list_title'), 'admin');
                 </tbody>
             </table>
         </div>
-
         <?php if ($pages > 1): ?>
             <div class="pagination">
                 <?php if ($page > 1): ?>

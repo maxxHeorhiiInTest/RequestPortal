@@ -15,6 +15,8 @@ $values = [
     'target'      => '',
     'description' => '',
     'comment'     => '',
+    'faculty'     => '',
+    'department'  => '',
     'name'        => '',
     'contact'     => '',
 ];
@@ -37,6 +39,8 @@ if ($postOverflowed) {
     $values['target']      = rp_clean_string($_POST['target'] ?? '', 1000);
     $values['description'] = rp_clean_string($_POST['description'] ?? '', 20000);
     $values['comment']     = rp_clean_string($_POST['comment'] ?? '', 5000);
+    $values['faculty']     = rp_clean_string($_POST['faculty'] ?? '', 255);
+    $values['department']  = rp_clean_string($_POST['department'] ?? '', 255);
     $values['name']        = rp_clean_string($_POST['name'] ?? '', 160);
     $values['contact']     = rp_clean_string($_POST['contact'] ?? '', 255);
 
@@ -51,6 +55,12 @@ if ($postOverflowed) {
     }
     if ($values['description'] === '') {
         $errors[] = __('error.description');
+    }
+    if ($values['faculty'] === '') {
+        $errors[] = __('error.faculty');
+    }
+    if ($values['department'] === '') {
+        $errors[] = __('error.department');
     }
     if ($values['name'] === '') {
         $errors[] = __('error.name');
@@ -88,10 +98,11 @@ if ($postOverflowed) {
                     $stmt = $pdo->prepare(
                         'INSERT INTO ' . RP_TABLE_REQUESTS . '
                             (public_code, type, target_location, description, extra_comment,
-                             requester_name, requester_contact, status, lang, ip_address, user_agent,
-                             created_at, updated_at)
+                             faculty, department, requester_name, requester_contact, status, lang,
+                             ip_address, user_agent, created_at, updated_at)
                          VALUES (:code, :type, :target, :description, :comment,
-                                 :name, :contact, \'new\', :lang, :ip, :ua, NOW(), NOW())'
+                                 :faculty, :department, :name, :contact, \'new\', :lang,
+                                 :ip, :ua, NOW(), NOW())'
                     );
                     $stmt->execute([
                         'code'        => $code,
@@ -99,6 +110,8 @@ if ($postOverflowed) {
                         'target'      => $values['target'],
                         'description' => $values['description'],
                         'comment'     => $values['comment'] !== '' ? $values['comment'] : null,
+                        'faculty'     => $values['faculty'],
+                        'department'  => $values['department'],
                         'name'        => $values['name'],
                         'contact'     => $values['contact'],
                         'lang'        => rp_lang(),
@@ -149,7 +162,10 @@ rp_header(__('form.title'));
     </div>
 <?php else: ?>
     <div class="card">
-        <h1><?= e(__('form.title')) ?></h1>
+        <div class="page-head">
+            <h1><?= e(__('form.title')) ?></h1>
+            <?php rp_page_tip('form.page_tip', 'assets/help/requests.mp4', 'assets/help/requests.jpg'); ?>
+        </div>
         <p class="muted"><?= e(__('form.intro')) ?></p>
 
         <?php if ($errors): ?>
@@ -201,6 +217,17 @@ rp_header(__('form.title'));
                 <label for="comment"><?= e(__('form.comment')) ?></label>
                 <textarea id="comment" name="comment" rows="3" maxlength="5000"><?= e($values['comment']) ?></textarea>
                 <small><?= e(__('form.comment_hint')) ?></small>
+            </div>
+
+            <div class="grid-2">
+                <div class="field">
+                    <label for="faculty"><?= e(__('form.faculty')) ?> *</label>
+                    <input type="text" id="faculty" name="faculty" maxlength="255" required value="<?= e($values['faculty']) ?>">
+                </div>
+                <div class="field">
+                    <label for="department"><?= e(__('form.department')) ?> *</label>
+                    <input type="text" id="department" name="department" maxlength="255" required value="<?= e($values['department']) ?>">
+                </div>
             </div>
 
             <div class="grid-2">

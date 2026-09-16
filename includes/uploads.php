@@ -157,6 +157,69 @@ function rp_store_uploads(PDO $pdo, int $requestId, string $publicCode, array $f
     return $stored;
 }
 
+/**
+ * Store uploads for a question / suggestion (no request-history side effects).
+ *
+ * @param list<array{name:string,tmp_name:string,size:int,error:int}> $files
+ * @return list<string>
+ */
+function rp_store_feedback_uploads(PDO $pdo, int $feedbackId, string $publicCode, array $files): array
+{
+    if (!$files) {
+        return [];
+    }
+
+    $baseDir   = rp_uploads_dir();
+    $subDir    = date('Y/m');
+    $targetDir = $baseDir . '/' . $subDir;
+
+    if (!is_dir($targetDir) && !mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
+        throw new RuntimeException('Cannot create upload directory: ' . $targetDir);
+    }
+
+    $finfo  = class_exists('finfo') ? new finfo(FILEINFO_MIME_TYPE) : null;
+    $stored = [];
+    $insert = $pdo->prepare(
+        'INSERT INTO ' . RP_TABLE_FEEDBACK_FILES . '
+            (feedback_id, original_name, stored_path, mime_type, size_bytes, created_at)
+         VALUES (:feedback_id, :original_name, :stored_path, :mime_type, :size_bytes, NOW())'
+    );
+
+    foreach ($files as $file) {
+        $ext        = rp_file_extension($file['name']);
+        $storedName = $publicCode . '-' . bin2hex(random_bytes(8)) . '.' . $ext;
+        $relPath    = $subDir . '/' . $storedName;
+        $absPath    = $baseDir . '/' . $relPath;
+
+        if (!move_uploaded_file($file['tmp_name'], $absPath)) {
+            throw new RuntimeException('Cannot move uploaded file to ' . $absPath);
+        }
+        @chmod($absPath, 0644);
+        $stored[] = $relPath;
+
+        $mime = $finfo instanceof finfo ? (string) $finfo->file($absPath) : 'application/octet-stream';
+        $insert->execute([
+            'feedback_id'   => $feedbackId,
+            'original_name' => mb_substr($file['name'], 0, 255, 'UTF-8'),
+            'stored_path'   => $relPath,
+            'mime_type'     => $mime !== '' ? $mime : 'application/octet-stream',
+            'size_bytes'    => filesize($absPath) ?: $file['size'],
+        ]);
+
+        rp_log_feedback_history(
+            $pdo,
+            $feedbackId,
+            'file_added',
+            null,
+            mb_substr($file['name'], 0, 255, 'UTF-8'),
+            null,
+            __('history.visitor')
+        );
+    }
+
+    return $stored;
+}
+
 /** Absolute path of the uploads directory, without a trailing slash. */
 function rp_uploads_dir(): string
 {

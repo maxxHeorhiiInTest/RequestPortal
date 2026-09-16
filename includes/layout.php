@@ -27,9 +27,9 @@ function rp_header(string $title, string $context = 'public'): void
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title><?= e($title . ' — ' . $appName) ?></title>
-    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=4">
+    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=8">
 </head>
-<body class="<?= e($context) ?><?= in_array($script, ['board.php', 'plan.php'], true) ? ' board-page' : '' ?>">
+<body class="<?= e($context) ?><?= in_array($script, ['board.php', 'plan.php', 'feedback-board.php'], true) ? ' board-page' : '' ?>">
 <header class="topbar">
     <div class="wrap topbar-inner">
         <div class="brand">
@@ -42,7 +42,6 @@ function rp_header(string $title, string $context = 'public'): void
                     <a href="<?= e(rp_url('admin/logout.php')) ?>"><?= e(__('nav.logout')) ?> (<?= e((string) $admin['username']) ?>)</a>
                 <?php endif; ?>
             <?php else: ?>
-                <a href="<?= e(rp_url('index.php')) ?>"><?= e(__('nav.new_request')) ?></a>
                 <a href="<?= e(rp_url('admin/index.php')) ?>"><?= e(__('nav.admin')) ?></a>
             <?php endif; ?>
             <?php if ($siteUrl !== ''): ?>
@@ -58,16 +57,27 @@ function rp_header(string $title, string $context = 'public'): void
     </div>
 </header>
 <main class="wrap">
+    <?php if ($context !== 'admin'): ?>
+        <nav class="admin-tabs" aria-label="<?= e(__('nav.new_request')) ?>">
+            <a class="admin-tab<?= $script === 'index.php' ? ' active' : '' ?>"
+               href="<?= e(rp_url('index.php')) ?>"><?= e(__('public.tab.requests')) ?></a>
+            <a class="admin-tab<?= $script === 'feedback.php' ? ' active' : '' ?>"
+               href="<?= e(rp_url('feedback.php')) ?>"><?= e(__('public.tab.feedback')) ?></a>
+        </nav>
+    <?php endif; ?>
     <?php if ($context === 'admin' && $admin !== null): ?>
         <?php
         $isRequests = in_array($script, ['index.php', 'view.php', 'board.php'], true);
         $isPlan     = in_array($script, ['plan.php', 'plan-edit.php'], true);
+        $isFeedback = in_array($script, ['feedback.php', 'feedback-view.php', 'feedback-board.php'], true);
         ?>
         <nav class="admin-tabs" aria-label="<?= e(__('nav.admin')) ?>">
             <a class="admin-tab<?= $isRequests ? ' active' : '' ?>"
                href="<?= e(rp_url('admin/index.php')) ?>"><?= e(__('admin.section.requests')) ?></a>
             <a class="admin-tab<?= $isPlan ? ' active' : '' ?>"
                href="<?= e(rp_url('admin/plan.php')) ?>"><?= e(__('admin.section.plan')) ?></a>
+            <a class="admin-tab<?= $isFeedback ? ' active' : '' ?>"
+               href="<?= e(rp_url('admin/feedback.php')) ?>"><?= e(__('admin.section.feedback')) ?></a>
         </nav>
         <?php if ($isRequests): ?>
             <nav class="admin-subtabs">
@@ -82,6 +92,13 @@ function rp_header(string $title, string $context = 'public'): void
                    href="<?= e(rp_url('admin/plan.php')) ?>"><?= e(__('content.calendar')) ?></a>
                 <a class="admin-tab<?= $script === 'plan-edit.php' && empty($_GET['id']) ? ' active' : '' ?>"
                    href="<?= e(rp_url('admin/plan-edit.php')) ?>"><?= e(__('content.new')) ?></a>
+            </nav>
+        <?php elseif ($isFeedback): ?>
+            <nav class="admin-subtabs">
+                <a class="admin-tab<?= in_array($script, ['feedback.php', 'feedback-view.php'], true) ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/feedback.php')) ?>"><?= e(__('admin.list_title')) ?></a>
+                <a class="admin-tab<?= $script === 'feedback-board.php' ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/feedback-board.php')) ?>"><?= e(__('admin.board_title')) ?></a>
             </nav>
         <?php endif; ?>
     <?php endif; ?>
@@ -98,7 +115,141 @@ function rp_footer(): void
 <footer class="footer wrap">
     <span><?= e(__('common.footer')) ?> · <?= e(date('Y')) ?></span>
 </footer>
+<script>
+(function () {
+    function closeTip(tip) {
+        var box = tip.querySelector('.page-tip-box');
+        var button = tip.querySelector('.page-tip-btn');
+        if (!box || !button) {
+            return;
+        }
+        box.hidden = true;
+        button.setAttribute('aria-expanded', 'false');
+        tip.classList.remove('open');
+        var video = tip.querySelector('video');
+        if (video) {
+            video.pause();
+        }
+    }
+
+    function toggleTip(tip) {
+        var box = tip.querySelector('.page-tip-box');
+        var button = tip.querySelector('.page-tip-btn');
+        if (!box || !button) {
+            return;
+        }
+        var open = box.hidden;
+        document.querySelectorAll('.page-tip').forEach(function (other) {
+            if (other !== tip) {
+                closeTip(other);
+            }
+        });
+        box.hidden = !open;
+        button.setAttribute('aria-expanded', open ? 'true' : 'false');
+        tip.classList.toggle('open', open);
+        var video = tip.querySelector('video');
+        if (video) {
+            if (open) {
+                try {
+                    video.currentTime = 0;
+                    video.play();
+                } catch (err) {}
+            } else {
+                video.pause();
+            }
+        }
+    }
+
+    document.addEventListener('click', function (event) {
+        var tip = event.target.closest ? event.target.closest('.page-tip') : null;
+        var closeBtn = event.target.closest ? event.target.closest('.page-tip-close') : null;
+        var button = event.target.closest ? event.target.closest('.page-tip-btn') : null;
+        if (closeBtn && tip) {
+            event.preventDefault();
+            closeTip(tip);
+            return;
+        }
+        if (button && tip) {
+            event.preventDefault();
+            toggleTip(tip);
+            return;
+        }
+        document.querySelectorAll('.page-tip.open').forEach(function (openTip) {
+            if (!openTip.contains(event.target)) {
+                closeTip(openTip);
+            }
+        });
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') {
+            return;
+        }
+        document.querySelectorAll('.page-tip.open').forEach(closeTip);
+    });
+})();
+</script>
 </body>
 </html>
+    <?php
+}
+
+/** Clickable help control that opens the current public page description. */
+function rp_page_tip(string $bodyKey, ?string $videoPath = null, ?string $posterPath = null): void
+{
+    $paragraphs = preg_split("/\n{2,}/", trim((string) __($bodyKey))) ?: [];
+    ?>
+    <div class="page-tip">
+        <button type="button" class="page-tip-btn" aria-expanded="false" aria-controls="page-tip-box">
+            <span class="page-tip-mark" aria-hidden="true">?</span>
+            <span><?= e(__('page.tip.label')) ?></span>
+        </button>
+        <div class="page-tip-box" id="page-tip-box" hidden>
+            <div class="page-tip-scroll">
+            <strong><?= e(__('page.tip.label')) ?></strong>
+            <?php if ($videoPath): ?>
+                <div class="page-tip-video-wrap">
+                    <video class="page-tip-video" controls playsinline muted preload="metadata"
+                           poster="<?= $posterPath ? e(rp_url($posterPath)) : '' ?>">
+                        <source src="<?= e(rp_url($videoPath)) ?>" type="video/mp4">
+                    </video>
+                    <p class="page-tip-video-cap"><?= e(__('page.tip.video')) ?></p>
+                </div>
+            <?php endif; ?>
+            <?php foreach ($paragraphs as $block): ?>
+                <?php
+                $block = trim($block);
+                if ($block === '') {
+                    continue;
+                }
+                if (str_starts_with($block, '## ')) {
+                    echo '<h3>' . e(substr($block, 3)) . '</h3>';
+                    continue;
+                }
+                $lines    = preg_split("/\n/", $block) ?: [];
+                $steps    = [];
+                $allSteps = $lines !== [];
+                foreach ($lines as $line) {
+                    if (!preg_match('/^\d+\.\s+(.+)$/u', trim($line), $match)) {
+                        $allSteps = false;
+                        break;
+                    }
+                    $steps[] = $match[1];
+                }
+                if ($allSteps && $steps !== []) {
+                    echo '<ol>';
+                    foreach ($steps as $step) {
+                        echo '<li>' . e($step) . '</li>';
+                    }
+                    echo '</ol>';
+                    continue;
+                }
+                ?>
+                <p><?= nl2br(e($block), false) ?></p>
+            <?php endforeach; ?>
+            </div>
+            <button type="button" class="btn btn-primary page-tip-close"><?= e(__('page.tip.close')) ?></button>
+        </div>
+    </div>
     <?php
 }

@@ -216,7 +216,7 @@ function rp_type_label(string $type): string
 }
 
 /** Generate a human friendly public request code, e.g. REQ-2026-4F7K2A. */
-function rp_generate_code(): string
+function rp_generate_code(string $prefix = 'REQ'): string
 {
     $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     $suffix   = '';
@@ -224,7 +224,7 @@ function rp_generate_code(): string
         $suffix .= $alphabet[random_int(0, strlen($alphabet) - 1)];
     }
 
-    return 'REQ-' . date('Y') . '-' . $suffix;
+    return $prefix . '-' . date('Y') . '-' . $suffix;
 }
 
 /** Largest upload accepted by the PHP runtime, in bytes. */

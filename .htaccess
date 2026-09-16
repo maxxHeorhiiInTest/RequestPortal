@@ -4,6 +4,9 @@
 
 DirectoryIndex index.php
 
+AddType video/mp4 .mp4
+AddType image/jpeg .jpg
+
 # Deny direct access to code, storage and configuration.
 RedirectMatch 404 (?i)^/?.*/(includes|storage|sql)/
 RedirectMatch 404 (?i)^/?.*/config(\.sample)?\.php$
