@@ -90,7 +90,11 @@ def chrome(active: str) -> Image.Image:
 
     y = 80
     d.line((32, 118, W - 32, 118), fill=BORDER)
-    tabs = [("requests", "Заявки на сайт"), ("feedback", "Питання / пропозиції")]
+    tabs = [
+        ("requests", "Заявки на сайт"),
+        ("plan", "Додати анонс"),
+        ("feedback", "Питання / пропозиції"),
+    ]
     x = 40
     for key, label in tabs:
         fnt = font(16, True)
@@ -171,29 +175,97 @@ def draw_requests(state: dict):
 def draw_feedback(state: dict):
     img = chrome("feedback")
     d = ImageDraw.Draw(img)
-    round_rect(d, (32, 132, W - 32, H - CAPTION_H - 16), 8, CARD, BORDER)
-    d.text((56, 148), "Питання або пропозиція", font=font(24, True), fill=TEXT)
+    round_rect(d, (32, 128, W - 32, H - CAPTION_H - 12), 8, CARD, BORDER)
+    d.text((56, 140), "Питання або пропозиція", font=font(22, True), fill=TEXT)
     if state.get("success"):
-        d.text((56, 220), "Звернення надіслано", font=font(28, True), fill=PRIMARY)
-        d.text((56, 270), "Дякуємо! Звернення зареєстровано під номером", font=font(18), fill=TEXT)
-        round_rect(d, (56, 320, 430, 380), 8, "#e8f1fb", PRIMARY)
-        d.text((76, 336), state["success"], font=font(22, True), fill=PRIMARY_DARK)
-        d.text((56, 410), "Запишіть цей номер або сфотографуйте екран.", font=font(18), fill=TEXT)
+        d.text((56, 210), "Звернення надіслано", font=font(28, True), fill=PRIMARY)
+        d.text((56, 258), "Дякуємо! Звернення зареєстровано під номером", font=font(18), fill=TEXT)
+        round_rect(d, (56, 308, 430, 368), 8, "#e8f1fb", PRIMARY)
+        d.text((76, 324), state["success"], font=font(22, True), fill=PRIMARY_DARK)
+        d.text((56, 392), "Відповідь надійде в обраний канал: Email, Telegram або WhatsApp.", font=font(18), fill=TEXT)
         caption_bar(img, state["caption"])
         return img, {}
 
-    d.text((56, 182), "Напишіть питання чи пропозицію. Логін не потрібен.", font=font(14), fill=MUTED)
+    d.text((56, 168), "Напишіть питання чи пропозицію. Логін не потрібен.", font=font(13), fill=MUTED)
     hl = state.get("hl")
     boxes = {}
-    boxes["message"] = field(d, 56, 220, 700, 70, "Питання / пропозиція *", state.get("message", ""), hl == "message")
-    boxes["files"] = field(d, 56, 320, 700, 36, "Фото, відео або документи", state.get("files", "Обрати файли"), hl == "files")
-    boxes["faculty"] = field(d, 56, 390, 330, 36, "Факультет *", state.get("faculty", ""), hl == "faculty")
-    boxes["department"] = field(d, 406, 390, 330, 36, "Кафедра *", state.get("department", ""), hl == "department")
-    boxes["name"] = field(d, 56, 460, 330, 36, "Ваше ім’я *", state.get("name", ""), hl == "name")
-    boxes["contact"] = field(d, 406, 460, 330, 36, "Контакт для зв’язку *", state.get("contact", ""), hl == "contact")
-    btn = (56, H - CAPTION_H - 70, 200, H - CAPTION_H - 28)
+    boxes["message"] = field(d, 56, 190, 700, 44, "Питання / пропозиція *", state.get("message", ""), hl == "message")
+    boxes["files"] = field(d, 56, 258, 330, 28, "Фото, відео або документи", state.get("files", "Обрати файли"), hl == "files")
+    boxes["faculty"] = field(d, 56, 308, 330, 28, "Факультет *", state.get("faculty", ""), hl == "faculty")
+    boxes["department"] = field(d, 406, 308, 330, 28, "Кафедра *", state.get("department", ""), hl == "department")
+    boxes["name"] = field(d, 56, 358, 330, 28, "Ваше ім’я *", state.get("name", ""), hl == "name")
+    boxes["phone"] = field(d, 406, 358, 330, 28, "Номер телефону *", state.get("phone", ""), hl == "phone", "+380 50 123 45 67")
+
+    d.text((56, 410), "Куди надіслати відповідь *", font=font(13, True), fill=TEXT)
+    channel_box = (56, 430, 736, 474)
+    round_rect(d, channel_box, 6, "#fffbeb" if hl == "channel" else WHITE, HIGHLIGHT if hl == "channel" else BORDER, 3 if hl == "channel" else 1)
+    selected = state.get("channel", "")
+    x = 72
+    for key, label in (("email", "Email"), ("telegram", "Telegram"), ("whatsapp", "WhatsApp")):
+        on = selected == key
+        d.ellipse((x, 444, x + 16, 460), outline=PRIMARY, width=2)
+        if on:
+            d.ellipse((x + 4, 448, x + 12, 456), fill=PRIMARY)
+        d.text((x + 24, 442), label, font=font(14, True if on else False), fill=TEXT)
+        x += 220
+    boxes["channel"] = channel_box
+
+    contact_label = {
+        "email": "Email *",
+        "telegram": "Нік або посилання Telegram *",
+        "whatsapp": "Номер WhatsApp *",
+    }.get(selected, "Контакт у цьому каналі *")
+    boxes["contact"] = field(d, 56, 486, 700, 28, contact_label, state.get("contact", ""), hl == "contact")
+
+    btn = (56, 538, 200, 576)
     round_rect(d, btn, 6, PRIMARY_DARK if hl == "submit" else PRIMARY)
-    d.text((88, H - CAPTION_H - 60), "Надіслати", font=font(16, True), fill=WHITE)
+    d.text((88, 548), "Надіслати", font=font(16, True), fill=WHITE)
+    boxes["submit"] = btn
+    caption_bar(img, state["caption"])
+    return img, boxes
+
+
+def draw_plan(state: dict):
+    img = chrome("plan")
+    d = ImageDraw.Draw(img)
+    round_rect(d, (32, 128, W - 32, H - CAPTION_H - 12), 8, CARD, BORDER)
+    d.text((56, 140), "Додати анонс", font=font(22, True), fill=TEXT)
+    if state.get("success"):
+        d.text((56, 210), "Анонс надіслано", font=font(28, True), fill=PRIMARY)
+        d.text((56, 258), "Дякуємо! Анонс збережено як чернетку.", font=font(18), fill=TEXT)
+        d.text((56, 292), "Команда сайту побачить його в контент-плані.", font=font(18), fill=TEXT)
+        d.text((56, 360), "Це ще не публікація — спочатку перевірка.", font=font(18), fill=TEXT)
+        caption_bar(img, state["caption"])
+        return img, {}
+
+    d.text((56, 170), "Заповніть форму — анонс потрапить до контент-плану як чернетка.", font=font(13), fill=MUTED)
+    hl = state.get("hl")
+    boxes = {}
+    boxes["title"] = field(d, 56, 196, 720, 32, "Назва події *", state.get("title", ""), hl == "title", "наприклад: Кубок університету")
+    boxes["when"] = field(d, 56, 256, 350, 32, "Дата та час проведення *", state.get("when", ""), hl == "when", "оберіть майбутню дату")
+    boxes["department"] = field(d, 426, 256, 350, 32, "Підрозділ / кафедра *", state.get("department", ""), hl == "department")
+    boxes["responsible"] = field(d, 56, 316, 350, 32, "Відповідальна особа *", state.get("responsible", ""), hl == "responsible")
+    boxes["description"] = field(d, 426, 316, 350, 32, "Короткий опис *", state.get("description", ""), hl == "description")
+    boxes["extra"] = field(d, 56, 376, 720, 32, "Посилання або додаткова інформація", state.get("extra", ""), hl == "extra", "не обов’язково")
+
+    d.text((56, 436), "Заплановані соцмережі / канали публікації", font=font(13, True), fill=TEXT)
+    channel_box = (56, 458, 760, 508)
+    round_rect(d, channel_box, 6, "#fffbeb" if hl == "channels" else WHITE, HIGHLIGHT if hl == "channels" else BORDER, 3 if hl == "channels" else 1)
+    selected = set(state.get("channels") or [])
+    x = 68
+    for name in ("Сайт", "Facebook", "Instagram", "Telegram", "YouTube", "TikTok"):
+        mark = name in selected
+        d.rectangle((x, 474, x + 14, 488), outline=PRIMARY, width=2, fill=PRIMARY if mark else WHITE)
+        if mark:
+            d.line((x + 3, 481, x + 6, 486), fill=WHITE, width=2)
+            d.line((x + 6, 486, x + 11, 476), fill=WHITE, width=2)
+        d.text((x + 18, 472), name, font=font(12), fill=TEXT)
+        x += 114
+    boxes["channels"] = channel_box
+
+    btn = (56, 528, 270, 568)
+    round_rect(d, btn, 6, PRIMARY_DARK if hl == "submit" else PRIMARY)
+    d.text((78, 538), "Надіслати анонс", font=font(16, True), fill=WHITE)
     boxes["submit"] = btn
     caption_bar(img, state["caption"])
     return img, boxes
@@ -270,31 +342,57 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
 
     request_story = [
-        {"caption": "Ця сторінка — щоб попросити розмістити або виправити інформацію на сайті.", "hl": None, "hold": 3.0, "point": None, "move": False},
-        {"caption": "Оберіть тип: нове розміщення — якщо цього ще немає на сайті.", "hl": "type", "type": "new", "hold": 3.2, "point": "type", "click": True},
-        {"caption": "Напишіть, де саме це має бути: посилання на сторінку або назва розділу.", "hl": "target", "type": "new", "target": "Новини → Оголошення", "hold": 3.4, "point": "target", "click": True},
-        {"caption": "Своїми словами опишіть, що треба зробити. Чим зрозуміліше — тим швидше допоможуть.", "hl": "description", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "hold": 3.6, "point": "description", "click": True},
-        {"caption": "Обов’язково вкажіть факультет і кафедру.", "hl": "faculty", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "hold": 3.2, "point": "faculty", "click": True},
-        {"caption": "Напишіть ім’я і телефон, пошту або Telegram — щоб з вами могли зв’язатися.", "hl": "contact", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Іван Петренко", "contact": "050 123 45 67", "hold": 3.4, "point": "contact", "click": True},
-        {"caption": "Файли можна додати, але не обов’язково.", "hl": "files", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Іван Петренко", "contact": "050 123 45 67", "hold": 2.8, "point": "files"},
-        {"caption": "Натисніть синю кнопку «Надіслати заявку» внизу.", "hl": "submit", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Іван Петренко", "contact": "050 123 45 67", "hold": 2.6, "point": "submit", "click": True},
-        {"caption": "З’явиться номер заявки. Запишіть його або сфотографуйте екран.", "success": "REQ-2026-XXXXXX", "hold": 4.0, "point": None, "move": False},
+        {"caption": "Ця сторінка — щоб попросити розмістити або виправити інформацію на сайті.", "hl": None, "hold": 2.8, "point": None, "move": False},
+        {"caption": "Питання — вкладка «Питання / пропозиції». Майбутня подія — «Додати анонс».", "hl": None, "hold": 3.2, "point": None, "move": False},
+        {"caption": "Оберіть тип: нове розміщення — якщо цього ще немає на сайті.", "hl": "type", "type": "new", "hold": 3.0, "point": "type", "click": True},
+        {"caption": "Напишіть, де саме це має бути: посилання на сторінку або назва розділу.", "hl": "target", "type": "new", "target": "Новини → Оголошення", "hold": 3.2, "point": "target", "click": True},
+        {"caption": "Своїми словами опишіть, що треба зробити. Чим зрозуміліше — тим швидше допоможуть.", "hl": "description", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "hold": 3.4, "point": "description", "click": True},
+        {"caption": "Обов’язково вкажіть факультет і кафедру.", "hl": "faculty", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "hold": 3.0, "point": "faculty", "click": True},
+        {"caption": "Напишіть ім’я і контакт: телефон, пошта або Telegram.", "hl": "contact", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Іван Петренко", "contact": "050 123 45 67", "hold": 3.2, "point": "contact", "click": True},
+        {"caption": "Файли можна додати, але не обов’язково.", "hl": "files", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Іван Петренко", "contact": "050 123 45 67", "hold": 2.6, "point": "files"},
+        {"caption": "Натисніть синю кнопку «Надіслати заявку» внизу.", "hl": "submit", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Іван Петренко", "contact": "050 123 45 67", "hold": 2.4, "point": "submit", "click": True},
+        {"caption": "З’явиться номер заявки. Запишіть його або сфотографуйте екран.", "success": "REQ-2026-XXXXXX", "hold": 3.8, "point": None, "move": False},
     ]
     render_story(draw_requests, request_story, OUT / "requests.mp4", OUT / "requests.jpg")
 
+    filled = {
+        "message": "Чи можна додати розклад на сайт?",
+        "faculty": "Факультет спорту",
+        "department": "Кафедра футболу",
+        "name": "Марія Коваленко",
+        "phone": "+380 50 123 45 67",
+        "channel": "telegram",
+        "contact": "@igor",
+    }
     feedback_story = [
-        {"caption": "Ця сторінка — для запитання або пропозиції. Реєструватися не потрібно.", "hl": None, "hold": 3.0, "point": None, "move": False},
-        {"caption": "Якщо треба змінити сайт — зверху натисніть «Заявки на сайт». Тут лише питання.", "hl": None, "hold": 3.4, "point": None, "move": False},
-        {"caption": "У великому полі напишіть запитання або пропозицію своїми словами.", "hl": "message", "message": "Чи можна додати розклад на сайт?", "hold": 3.6, "point": "message", "click": True},
-        {"caption": "Фото чи документ можна додати, якщо це допоможе. Можна нічого не додавати.", "hl": "files", "message": "Чи можна додати розклад на сайт?", "hold": 3.0, "point": "files"},
-        {"caption": "Обов’язково вкажіть факультет і кафедру.", "hl": "faculty", "message": "Чи можна додати розклад на сайт?", "faculty": "Факультет спорту", "department": "Кафедра футболу", "hold": 3.0, "point": "faculty", "click": True},
-        {"caption": "Напишіть ім’я і як з вами зв’язатися: телефон, пошта або Telegram.", "hl": "contact", "message": "Чи можна додати розклад на сайт?", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Марія Коваленко", "contact": "maria@example.com", "hold": 3.4, "point": "contact", "click": True},
-        {"caption": "Натисніть синю кнопку «Надіслати» внизу сторінки.", "hl": "submit", "message": "Чи можна додати розклад на сайт?", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Марія Коваленко", "contact": "maria@example.com", "hold": 2.6, "point": "submit", "click": True},
-        {"caption": "З’явиться номер звернення. Запишіть його. Відповідь надійде на ваш контакт.", "success": "QST-2026-XXXXXX", "hold": 4.0, "point": None, "move": False},
+        {"caption": "Ця сторінка — для запитання або пропозиції. Реєструватися не потрібно.", "hl": None, "hold": 2.8, "point": None, "move": False},
+        {"caption": "Змінити сайт — «Заявки на сайт». Майбутня подія — «Додати анонс».", "hl": None, "hold": 3.2, "point": None, "move": False},
+        {"caption": "У полі «Питання / пропозиція» напишіть звернення своїми словами.", "hl": "message", "message": filled["message"], "hold": 3.2, "point": "message", "click": True},
+        {"caption": "Фото чи документ можна додати, якщо це допоможе. Можна нічого не додавати.", "hl": "files", "message": filled["message"], "hold": 2.6, "point": "files"},
+        {"caption": "Обов’язково вкажіть факультет і кафедру.", "hl": "faculty", "message": filled["message"], "faculty": filled["faculty"], "department": filled["department"], "hold": 2.8, "point": "faculty", "click": True},
+        {"caption": "Напишіть своє ім’я.", "hl": "name", "message": filled["message"], "faculty": filled["faculty"], "department": filled["department"], "name": filled["name"], "hold": 2.4, "point": "name", "click": True},
+        {"caption": "У полі «Номер телефону» вкажіть телефон. Це обов’язково.", "hl": "phone", **{k: filled[k] for k in ("message", "faculty", "department", "name", "phone")}, "hold": 2.8, "point": "phone", "click": True},
+        {"caption": "Оберіть, куди надіслати відповідь: Email, Telegram або WhatsApp.", "hl": "channel", **{k: filled[k] for k in ("message", "faculty", "department", "name", "phone", "channel")}, "hold": 3.2, "point": "channel", "click": True},
+        {"caption": "Вкажіть контакт цього каналу. Для Telegram — нік, наприклад @igor.", "hl": "contact", **filled, "hold": 3.2, "point": "contact", "click": True},
+        {"caption": "Натисніть синю кнопку «Надіслати» внизу сторінки.", "hl": "submit", **filled, "hold": 2.4, "point": "submit", "click": True},
+        {"caption": "З’явиться номер звернення. Відповідь надійде в обраний канал.", "success": "QST-2026-XXXXXX", "hold": 3.8, "point": None, "move": False},
     ]
     render_story(draw_feedback, feedback_story, OUT / "feedback.mp4", OUT / "feedback.jpg")
 
-    for name in ("requests.mp4", "feedback.mp4"):
+    plan_story = [
+        {"caption": "Ця сторінка — щоб повідомити про майбутню подію. Реєструватися не потрібно.", "hl": None, "hold": 2.8, "point": None, "move": False},
+        {"caption": "Змінити сайт — «Заявки на сайт». Питання — «Питання / пропозиції».", "hl": None, "hold": 3.2, "point": None, "move": False},
+        {"caption": "Напишіть коротку назву події.", "hl": "title", "title": "Кубок університету з футболу", "hold": 2.8, "point": "title", "click": True},
+        {"caption": "Оберіть дату і час. Минулу дату поставити не можна.", "hl": "when", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "hold": 3.0, "point": "when", "click": True},
+        {"caption": "Вкажіть підрозділ і відповідальну особу.", "hl": "responsible", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "department": "Кафедра футболу", "responsible": "Іван Петренко", "hold": 3.0, "point": "responsible", "click": True},
+        {"caption": "Коротко опишіть подію своїми словами.", "hl": "description", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "department": "Кафедра футболу", "responsible": "Іван Петренко", "description": "Відкриті змагання для студентів.", "hold": 3.0, "point": "description", "click": True},
+        {"caption": "Позначте канали: сайт, Facebook, Instagram, Telegram, YouTube, TikTok.", "hl": "channels", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "department": "Кафедра футболу", "responsible": "Іван Петренко", "description": "Відкриті змагання для студентів.", "channels": ["Сайт", "Facebook", "Telegram"], "hold": 3.0, "point": "channels", "click": True},
+        {"caption": "Натисніть синю кнопку «Надіслати анонс».", "hl": "submit", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "department": "Кафедра футболу", "responsible": "Іван Петренко", "description": "Відкриті змагання для студентів.", "channels": ["Сайт", "Facebook", "Telegram"], "hold": 2.4, "point": "submit", "click": True},
+        {"caption": "З’явиться підтвердження. Анонс збережеться як чернетка до перевірки.", "success": True, "hold": 3.8, "point": None, "move": False},
+    ]
+    render_story(draw_plan, plan_story, OUT / "plan.mp4", OUT / "plan.jpg")
+
+    for name in ("requests.mp4", "feedback.mp4", "plan.mp4"):
         path = OUT / name
         print(f"{name} {path.stat().st_size / 1024:.0f} KB")
 

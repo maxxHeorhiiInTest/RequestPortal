@@ -3,17 +3,24 @@
  * Request Portal — configuration sample.
  *
  * UA: Скопіюйте цей файл у config.php та заповніть дані підключення до MySQL.
+ *     Прод: php tools/config_crypt.php decrypt (config.enc + .config-pass).
  * EN: Copy this file to config.php and fill in your MySQL credentials.
+ *     Production: php tools/config_crypt.php decrypt (config.enc + .config-pass).
  */
 
 return [
     'db' => [
-        'host'    => 'localhost',
-        'port'    => 3306,
-        'name'    => 'request_portal',
-        'user'    => 'request_portal',
-        'pass'    => '',
-        'charset' => 'utf8mb4',
+        'host'       => 'localhost',
+        'port'       => 3306,
+        'name'       => 'request_portal',
+        'user'       => 'request_portal',
+        'pass'       => '',
+        'charset'    => 'utf8mb4',
+        // Managed MySQL (HolderPOS): ssl true, ssl_verify false.
+        'ssl'        => false,
+        'ssl_verify' => false,
+        'ssl_cipher' => 'DEFAULT',
+        'ssl_ca'     => '',
     ],
 
     'app' => [

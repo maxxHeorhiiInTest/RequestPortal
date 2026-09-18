@@ -10,6 +10,10 @@ const RP_TABLE_CONTENT  = 'rp_content_items';
 const RP_TABLE_FEEDBACK = 'rp_feedback';
 const RP_TABLE_FEEDBACK_FILES = 'rp_feedback_files';
 const RP_TABLE_FEEDBACK_HISTORY = 'rp_feedback_history';
+const RP_TABLE_VISITS = 'rp_page_visits';
+const RP_TABLE_HIDDEN_HOLIDAYS = 'rp_hidden_holidays';
+const RP_VISIT_DEDUP_MINUTES = 30;
+const RP_VISIT_RETENTION_DAYS = 90;
 
 /**
  * Shared PDO connection.
@@ -29,12 +33,24 @@ function rp_db(): PDO
         (string) rp_config('db.charset', 'utf8mb4')
     );
 
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+
+    // Managed MySQL (HolderPOS) requires TLS; their cert does not chain to OS CAs.
+    if (rp_config('db.ssl', false)) {
+        $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = (bool) rp_config('db.ssl_verify', false);
+        $options[PDO::MYSQL_ATTR_SSL_CIPHER] = (string) rp_config('db.ssl_cipher', 'DEFAULT');
+        $ca = rp_config('db.ssl_ca', '');
+        if (is_string($ca) && $ca !== '') {
+            $options[PDO::MYSQL_ATTR_SSL_CA] = $ca;
+        }
+    }
+
     try {
-        $pdo = new PDO($dsn, (string) rp_config('db.user', ''), (string) rp_config('db.pass', ''), [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => false,
-        ]);
+        $pdo = new PDO($dsn, (string) rp_config('db.user', ''), (string) rp_config('db.pass', ''), $options);
         rp_apply_db_timezone($pdo);
         rp_ensure_schema($pdo);
     } catch (PDOException $exception) {
@@ -162,7 +178,9 @@ function rp_schema(): array
                 faculty VARCHAR(255) NOT NULL DEFAULT \'\',
                 department VARCHAR(255) NOT NULL DEFAULT \'\',
                 requester_name VARCHAR(160) NOT NULL,
+                requester_phone VARCHAR(80) NOT NULL DEFAULT \'\',
                 requester_contact VARCHAR(255) NOT NULL,
+                requester_channel VARCHAR(20) NOT NULL DEFAULT \'\',
                 status ENUM(\'new\', \'in_progress\', \'done\', \'rejected\') NOT NULL DEFAULT \'new\',
                 admin_note TEXT NULL,
                 lang CHAR(2) NOT NULL DEFAULT \'uk\',
@@ -207,6 +225,30 @@ function rp_schema(): array
                 CONSTRAINT fk_feedback_history FOREIGN KEY (feedback_id)
                     REFERENCES ' . RP_TABLE_FEEDBACK . ' (id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_VISITS => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_VISITS . ' (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                path VARCHAR(255) NOT NULL,
+                ip_address VARCHAR(45) NULL,
+                session_id VARCHAR(128) NULL,
+                user_agent VARCHAR(255) NULL,
+                lang CHAR(2) NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_created (created_at),
+                KEY idx_path_created (path, created_at),
+                KEY idx_ip_created (ip_address, created_at),
+                KEY idx_session_path_created (session_id, path, created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_HIDDEN_HOLIDAYS => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_HIDDEN_HOLIDAYS . ' (
+                holiday_key VARCHAR(80) NOT NULL,
+                hidden_by VARCHAR(160) NOT NULL,
+                hidden_at DATETIME NOT NULL,
+                PRIMARY KEY (holiday_key)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
     ];
 }
 
@@ -240,8 +282,10 @@ function rp_ensure_columns(PDO $pdo): void
             'department' => "VARCHAR(255) NOT NULL DEFAULT ''",
         ],
         RP_TABLE_FEEDBACK => [
-            'faculty'    => "VARCHAR(255) NOT NULL DEFAULT ''",
-            'department' => "VARCHAR(255) NOT NULL DEFAULT ''",
+            'faculty'          => "VARCHAR(255) NOT NULL DEFAULT ''",
+            'department'       => "VARCHAR(255) NOT NULL DEFAULT ''",
+            'requester_phone'   => "VARCHAR(80) NOT NULL DEFAULT ''",
+            'requester_channel' => "VARCHAR(20) NOT NULL DEFAULT ''",
         ],
     ];
 
@@ -419,5 +463,91 @@ function rp_tables_exist(PDO $pdo): bool
         return true;
     } catch (PDOException) {
         return false;
+    }
+}
+
+/** @return list<string> */
+function rp_public_visit_scripts(): array
+{
+    return ['index.php', 'addData.php', 'planAdd.php', 'feedback.php'];
+}
+
+function rp_visit_page_label(string $path): string
+{
+    $labels = [
+        'index.php'    => __('admin.stats.page.home'),
+        'addData.php'  => __('admin.stats.page.request'),
+        'planAdd.php'  => __('admin.stats.page.plan'),
+        'feedback.php' => __('admin.stats.page.feedback'),
+    ];
+
+    return $labels[$path] ?? $path;
+}
+
+/** Record a public page view. Failures are logged and never break the page. */
+function rp_track_visit(): void
+{
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
+        return;
+    }
+    if (!empty($_SESSION['rp_admin']['id'])) {
+        return;
+    }
+
+    $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    if (preg_match('#/(admin|tools)/#', $scriptName)) {
+        return;
+    }
+
+    $path = basename($scriptName);
+    if (!in_array($path, rp_public_visit_scripts(), true)) {
+        return;
+    }
+
+    $ua = rp_user_agent();
+    if ($ua !== '' && preg_match('/bot|crawl|spider|slurp|facebookexternalhit|preview/i', $ua)) {
+        return;
+    }
+
+    try {
+        $pdo = rp_db();
+        $sid = session_id();
+
+        if ($sid !== '') {
+            $dup = $pdo->prepare(
+                'SELECT id FROM ' . RP_TABLE_VISITS . '
+                 WHERE session_id = :sid AND path = :path
+                   AND created_at >= (NOW() - INTERVAL ' . RP_VISIT_DEDUP_MINUTES . ' MINUTE)
+                 LIMIT 1'
+            );
+            $dup->execute(['sid' => $sid, 'path' => $path]);
+            if ($dup->fetch()) {
+                return;
+            }
+        }
+
+        $ip = rp_client_ip();
+        $ins = $pdo->prepare(
+            'INSERT INTO ' . RP_TABLE_VISITS . '
+                (path, ip_address, session_id, user_agent, lang, created_at)
+             VALUES (:path, :ip, :sid, :ua, :lang, NOW())'
+        );
+        $ins->execute([
+            'path' => substr($path, 0, 255),
+            'ip'   => $ip !== '' ? $ip : null,
+            'sid'  => $sid !== '' ? substr($sid, 0, 128) : null,
+            'ua'   => $ua !== '' ? $ua : null,
+            'lang' => rp_lang(),
+        ]);
+
+        if (empty($_SESSION['rp_visits_pruned'])) {
+            $pdo->exec(
+                'DELETE FROM ' . RP_TABLE_VISITS . '
+                 WHERE created_at < (NOW() - INTERVAL ' . RP_VISIT_RETENTION_DAYS . ' DAY)'
+            );
+            $_SESSION['rp_visits_pruned'] = 1;
+        }
+    } catch (Throwable $exception) {
+        error_log('[request-portal] visit log failed: ' . $exception->getMessage());
     }
 }

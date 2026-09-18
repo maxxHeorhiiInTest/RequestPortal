@@ -104,6 +104,14 @@ function rp_find_content(PDO $pdo, int $id): ?array
     return $row ?: null;
 }
 
+function rp_delete_content(PDO $pdo, int $id): bool
+{
+    $stmt = $pdo->prepare('DELETE FROM ' . RP_TABLE_CONTENT . ' WHERE id = :id');
+    $stmt->execute(['id' => $id]);
+
+    return $stmt->rowCount() > 0;
+}
+
 /**
  * Events whose local date falls in [fromUtc, toUtc).
  *
@@ -117,6 +125,53 @@ function rp_content_between(PDO $pdo, string $fromUtc, string $toUtc): array
          ORDER BY event_at ASC, id ASC'
     );
     $stmt->execute(['from_at' => $fromUtc, 'to_at' => $toUtc]);
+
+    return $stmt->fetchAll();
+}
+
+/** Number of guest announcements submitted from an IP within the last hour. */
+function rp_recent_guest_content_count(PDO $pdo, string $ip): int
+{
+    if ($ip === '') {
+        return 0;
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM ' . RP_TABLE_CONTENT . '
+         WHERE created_by = :who AND created_at >= (NOW() - INTERVAL 1 HOUR)'
+    );
+    $stmt->execute(['who' => 'guest:' . $ip]);
+
+    return (int) $stmt->fetchColumn();
+}
+
+function rp_content_is_public(?string $createdBy): bool
+{
+    return is_string($createdBy) && str_starts_with($createdBy, 'guest:');
+}
+
+function rp_content_public_draft_count(PDO $pdo): int
+{
+    return (int) $pdo->query(
+        'SELECT COUNT(*) FROM ' . RP_TABLE_CONTENT . "
+         WHERE created_by LIKE 'guest:%' AND status = 'draft'"
+    )->fetchColumn();
+}
+
+/**
+ * Announcements submitted through the public form, newest first.
+ *
+ * @return list<array<string,mixed>>
+ */
+function rp_content_public_list(PDO $pdo, int $limit = 200): array
+{
+    $limit = max(1, min(500, $limit));
+    $stmt  = $pdo->query(
+        'SELECT * FROM ' . RP_TABLE_CONTENT . "
+         WHERE created_by LIKE 'guest:%'
+         ORDER BY (status = 'draft') DESC, created_at DESC, id DESC
+         LIMIT " . $limit
+    );
 
     return $stmt->fetchAll();
 }

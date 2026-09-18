@@ -27,7 +27,7 @@ function rp_header(string $title, string $context = 'public'): void
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title><?= e($title . ' — ' . $appName) ?></title>
-    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=8">
+    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=19">
 </head>
 <body class="<?= e($context) ?><?= in_array($script, ['board.php', 'plan.php', 'feedback-board.php'], true) ? ' board-page' : '' ?>">
 <header class="topbar">
@@ -42,6 +42,10 @@ function rp_header(string $title, string $context = 'public'): void
                     <a href="<?= e(rp_url('admin/logout.php')) ?>"><?= e(__('nav.logout')) ?> (<?= e((string) $admin['username']) ?>)</a>
                 <?php endif; ?>
             <?php else: ?>
+                <a href="<?= e(rp_url('index.php')) ?>"><?= e(__('nav.home')) ?></a>
+                <a href="<?= e(rp_url('addData.php')) ?>"><?= e(__('nav.new_request')) ?></a>
+                <a href="<?= e(rp_url('planAdd.php')) ?>"><?= e(__('nav.plan_add')) ?></a>
+                <a href="<?= e(rp_url('feedback.php')) ?>"><?= e(__('nav.feedback')) ?></a>
                 <a href="<?= e(rp_url('admin/index.php')) ?>"><?= e(__('nav.admin')) ?></a>
             <?php endif; ?>
             <?php if ($siteUrl !== ''): ?>
@@ -59,8 +63,10 @@ function rp_header(string $title, string $context = 'public'): void
 <main class="wrap">
     <?php if ($context !== 'admin'): ?>
         <nav class="admin-tabs" aria-label="<?= e(__('nav.new_request')) ?>">
-            <a class="admin-tab<?= $script === 'index.php' ? ' active' : '' ?>"
-               href="<?= e(rp_url('index.php')) ?>"><?= e(__('public.tab.requests')) ?></a>
+            <a class="admin-tab<?= $script === 'addData.php' ? ' active' : '' ?>"
+               href="<?= e(rp_url('addData.php')) ?>"><?= e(__('public.tab.requests')) ?></a>
+            <a class="admin-tab<?= $script === 'planAdd.php' ? ' active' : '' ?>"
+               href="<?= e(rp_url('planAdd.php')) ?>"><?= e(__('nav.plan_add')) ?></a>
             <a class="admin-tab<?= $script === 'feedback.php' ? ' active' : '' ?>"
                href="<?= e(rp_url('feedback.php')) ?>"><?= e(__('public.tab.feedback')) ?></a>
         </nav>
@@ -68,16 +74,23 @@ function rp_header(string $title, string $context = 'public'): void
     <?php if ($context === 'admin' && $admin !== null): ?>
         <?php
         $isRequests = in_array($script, ['index.php', 'view.php', 'board.php'], true);
-        $isPlan     = in_array($script, ['plan.php', 'plan-edit.php'], true);
+        $isPlan     = in_array($script, ['plan.php', 'plan-edit.php', 'plan-inbox.php'], true);
         $isFeedback = in_array($script, ['feedback.php', 'feedback-view.php', 'feedback-board.php'], true);
+        $isStats    = $script === 'stats.php';
+        require_once __DIR__ . '/content.php';
+        $planInbox  = rp_content_public_draft_count(rp_db());
         ?>
         <nav class="admin-tabs" aria-label="<?= e(__('nav.admin')) ?>">
             <a class="admin-tab<?= $isRequests ? ' active' : '' ?>"
                href="<?= e(rp_url('admin/index.php')) ?>"><?= e(__('admin.section.requests')) ?></a>
             <a class="admin-tab<?= $isPlan ? ' active' : '' ?>"
-               href="<?= e(rp_url('admin/plan.php')) ?>"><?= e(__('admin.section.plan')) ?></a>
+               href="<?= e(rp_url('admin/plan.php')) ?>"><?= e(__('admin.section.plan')) ?><?php if ($planInbox > 0): ?>
+                <span class="tab-count"><?= (int) $planInbox ?></span>
+            <?php endif; ?></a>
             <a class="admin-tab<?= $isFeedback ? ' active' : '' ?>"
                href="<?= e(rp_url('admin/feedback.php')) ?>"><?= e(__('admin.section.feedback')) ?></a>
+            <a class="admin-tab<?= $isStats ? ' active' : '' ?>"
+               href="<?= e(rp_url('admin/stats.php')) ?>"><?= e(__('admin.section.stats')) ?></a>
         </nav>
         <?php if ($isRequests): ?>
             <nav class="admin-subtabs">
@@ -90,6 +103,10 @@ function rp_header(string $title, string $context = 'public'): void
             <nav class="admin-subtabs">
                 <a class="admin-tab<?= $script === 'plan.php' ? ' active' : '' ?>"
                    href="<?= e(rp_url('admin/plan.php')) ?>"><?= e(__('content.calendar')) ?></a>
+                <a class="admin-tab<?= $script === 'plan-inbox.php' ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/plan-inbox.php')) ?>"><?= e(__('content.inbox')) ?><?php if ($planInbox > 0): ?>
+                    <span class="tab-count"><?= (int) $planInbox ?></span>
+                <?php endif; ?></a>
                 <a class="admin-tab<?= $script === 'plan-edit.php' && empty($_GET['id']) ? ' active' : '' ?>"
                    href="<?= e(rp_url('admin/plan-edit.php')) ?>"><?= e(__('content.new')) ?></a>
             </nav>
@@ -189,6 +206,151 @@ function rp_footer(): void
     });
 })();
 </script>
+<?php if (function_exists('rp_admin_user') && rp_admin_user() !== null): ?>
+<script type="application/json" id="admin-inbox-cfg"><?= json_encode([
+    'poll'    => rp_url('admin/inbox-poll.php'),
+    'open'    => __('admin.open'),
+    'close'   => __('admin.inbox.close'),
+    'heading' => __('admin.inbox.title'),
+    'kinds'   => [
+        'request'  => __('admin.inbox.request'),
+        'feedback' => __('admin.inbox.feedback'),
+        'plan'     => __('admin.inbox.plan'),
+    ],
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?></script>
+<script>
+(function () {
+    var cfgEl = document.getElementById('admin-inbox-cfg');
+    if (!cfgEl) return;
+    var cfg = {};
+    try { cfg = JSON.parse(cfgEl.textContent || '{}'); } catch (err) { return; }
+    if (!cfg.poll) return;
+
+    var host = document.createElement('div');
+    host.className = 'inbox-toasts';
+    host.hidden = true;
+    host.setAttribute('role', 'dialog');
+    host.setAttribute('aria-modal', 'true');
+    document.body.appendChild(host);
+
+    var sinceKey = 'rp_inbox_since';
+    var seenKey = 'rp_inbox_seen';
+    var pending = [];
+
+    function loadSeen() {
+        try {
+            var raw = sessionStorage.getItem(seenKey);
+            var arr = raw ? JSON.parse(raw) : [];
+            return Array.isArray(arr) ? arr : [];
+        } catch (err) {
+            return [];
+        }
+    }
+    function saveSeen(arr) {
+        if (arr.length > 200) arr = arr.slice(-200);
+        sessionStorage.setItem(seenKey, JSON.stringify(arr));
+    }
+    function markSeen(key) {
+        var seen = loadSeen();
+        if (seen.indexOf(key) === -1) {
+            seen.push(key);
+            saveSeen(seen);
+        }
+    }
+
+    function closeInbox() {
+        pending = [];
+        host.hidden = true;
+        host.innerHTML = '';
+    }
+
+    function renderInbox() {
+        if (!pending.length) {
+            closeInbox();
+            return;
+        }
+        host.hidden = false;
+        host.innerHTML = '';
+        var box = document.createElement('div');
+        box.className = 'inbox-toast';
+        var heading = document.createElement('strong');
+        heading.textContent = cfg.heading || '';
+        box.appendChild(heading);
+        pending.forEach(function (item) {
+            var row = document.createElement('div');
+            row.className = 'inbox-toast-item';
+            var kind = document.createElement('div');
+            kind.style.fontWeight = '600';
+            kind.textContent = (cfg.kinds && cfg.kinds[item.kind]) ? cfg.kinds[item.kind] : (item.kind || '');
+            var body = document.createElement('div');
+            body.textContent = item.title || '';
+            var meta = document.createElement('div');
+            meta.className = 'meta';
+            meta.textContent = [item.code, item.who].filter(Boolean).join(' · ');
+            var actions = document.createElement('div');
+            actions.className = 'inbox-toast-actions';
+            var open = document.createElement('a');
+            open.className = 'btn btn-small btn-primary';
+            open.href = item.url || '#';
+            open.textContent = cfg.open || '';
+            actions.appendChild(open);
+            row.appendChild(kind);
+            if (body.textContent) row.appendChild(body);
+            if (meta.textContent) row.appendChild(meta);
+            row.appendChild(actions);
+            box.appendChild(row);
+        });
+        var closeRow = document.createElement('div');
+        closeRow.className = 'inbox-toast-actions';
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn';
+        close.textContent = cfg.close || '';
+        close.addEventListener('click', closeInbox);
+        closeRow.appendChild(close);
+        box.appendChild(closeRow);
+        host.appendChild(box);
+    }
+
+    host.addEventListener('click', function (event) {
+        if (event.target === host) closeInbox();
+    });
+
+    function poll() {
+        var since = sessionStorage.getItem(sinceKey) || '';
+        var url = cfg.poll + (since ? ('?since=' + encodeURIComponent(since)) : '');
+        fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+            .then(function (res) { return res.ok ? res.json() : null; })
+            .then(function (data) {
+                if (!data || !data.ok) return;
+                var seen = loadSeen();
+                var added = false;
+                (data.items || []).forEach(function (item) {
+                    var key = (item.kind || '') + ':' + String(item.id || '');
+                    if (seen.indexOf(key) !== -1) return;
+                    markSeen(key);
+                    pending.push(item);
+                    added = true;
+                });
+                if (data.now) sessionStorage.setItem(sinceKey, data.now);
+                if (added) renderInbox();
+            })
+            .catch(function () {});
+    }
+
+    poll();
+    window.setInterval(poll, 5000);
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) poll();
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !host.hidden) {
+            closeInbox();
+        }
+    });
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>
     <?php
@@ -198,6 +360,20 @@ function rp_footer(): void
 function rp_page_tip(string $bodyKey, ?string $videoPath = null, ?string $posterPath = null): void
 {
     $paragraphs = preg_split("/\n{2,}/", trim((string) __($bodyKey))) ?: [];
+    $videoSrc  = $videoPath ? rp_url($videoPath) : '';
+    $posterSrc = $posterPath ? rp_url($posterPath) : '';
+    if ($videoPath) {
+        $full = RP_ROOT . '/' . ltrim($videoPath, '/');
+        if (is_file($full)) {
+            $videoSrc .= '?v=' . filemtime($full);
+        }
+    }
+    if ($posterPath) {
+        $full = RP_ROOT . '/' . ltrim($posterPath, '/');
+        if (is_file($full)) {
+            $posterSrc .= '?v=' . filemtime($full);
+        }
+    }
     ?>
     <div class="page-tip">
         <button type="button" class="page-tip-btn" aria-expanded="false" aria-controls="page-tip-box">
@@ -210,8 +386,8 @@ function rp_page_tip(string $bodyKey, ?string $videoPath = null, ?string $poster
             <?php if ($videoPath): ?>
                 <div class="page-tip-video-wrap">
                     <video class="page-tip-video" controls playsinline muted preload="metadata"
-                           poster="<?= $posterPath ? e(rp_url($posterPath)) : '' ?>">
-                        <source src="<?= e(rp_url($videoPath)) ?>" type="video/mp4">
+                           poster="<?= e($posterSrc) ?>">
+                        <source src="<?= e($videoSrc) ?>" type="video/mp4">
                     </video>
                     <p class="page-tip-video-cap"><?= e(__('page.tip.video')) ?></p>
                 </div>

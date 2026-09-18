@@ -1,272 +1,96 @@
 <?php
 /**
- * Public request form: create a "new publication" or "update" request.
+ * Public landing: NUFVSU site under construction.
  */
 
 declare(strict_types=1);
 
 require __DIR__ . '/includes/bootstrap.php';
-require __DIR__ . '/includes/uploads.php';
-require __DIR__ . '/includes/layout.php';
 
-$errors = [];
-$values = [
-    'type'        => 'new',
-    'target'      => '',
-    'description' => '',
-    'comment'     => '',
-    'faculty'     => '',
-    'department'  => '',
-    'name'        => '',
-    'contact'     => '',
-];
+$lang = rp_lang();
 
-$maxFiles   = (int) rp_config('uploads.max_files', 10);
-$maxSize    = rp_effective_file_limit();
-$submitted  = null;
-
-/*
- * When the upload exceeds post_max_size PHP delivers an empty $_POST, so the
- * request method is the only reliable signal that something was sent.
- */
-$isPost         = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
-$postOverflowed = $isPost && empty($_POST) && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0;
-
-if ($postOverflowed) {
-    $errors[] = __('error.post_too_large', rp_format_bytes(rp_php_upload_limit()));
-} elseif ($isPost) {
-    $values['type']        = in_array($_POST['type'] ?? '', rp_request_types(), true) ? (string) $_POST['type'] : '';
-    $values['target']      = rp_clean_string($_POST['target'] ?? '', 1000);
-    $values['description'] = rp_clean_string($_POST['description'] ?? '', 20000);
-    $values['comment']     = rp_clean_string($_POST['comment'] ?? '', 5000);
-    $values['faculty']     = rp_clean_string($_POST['faculty'] ?? '', 255);
-    $values['department']  = rp_clean_string($_POST['department'] ?? '', 255);
-    $values['name']        = rp_clean_string($_POST['name'] ?? '', 160);
-    $values['contact']     = rp_clean_string($_POST['contact'] ?? '', 255);
-
-    if (!rp_csrf_valid($_POST['csrf_token'] ?? null)) {
-        $errors[] = __('error.csrf');
-    }
-    if ($values['type'] === '') {
-        $errors[] = __('error.type');
-    }
-    if ($values['target'] === '') {
-        $errors[] = __('error.target');
-    }
-    if ($values['description'] === '') {
-        $errors[] = __('error.description');
-    }
-    if ($values['faculty'] === '') {
-        $errors[] = __('error.faculty');
-    }
-    if ($values['department'] === '') {
-        $errors[] = __('error.department');
-    }
-    if ($values['name'] === '') {
-        $errors[] = __('error.name');
-    }
-    if ($values['contact'] === '') {
-        $errors[] = __('error.contact');
-    } elseif (mb_strlen($values['contact']) < 4) {
-        $errors[] = __('error.contact_invalid');
-    }
-
-    // Honeypot: a filled-in hidden field means a bot, answer as if it worked.
-    if (rp_clean_string($_POST['website'] ?? '', 100) !== '') {
-        rp_redirect('index.php?sent=' . urlencode(rp_generate_code()));
-    }
-
-    $files  = rp_collect_uploads();
-    $errors = array_merge($errors, rp_validate_uploads($files));
-
-    $rateLimit = (int) rp_config('security.rate_limit_per_hour', 0);
-    if (!$errors && $rateLimit > 0 && rp_recent_request_count(rp_db(), rp_client_ip()) >= $rateLimit) {
-        $errors[] = __('error.rate_limit');
-    }
-
-    if (!$errors) {
-        $pdo    = rp_db();
-        $stored = [];
-
-        try {
-            $pdo->beginTransaction();
-
-            // Retry on the (very unlikely) duplicate public code.
-            for ($attempt = 1; ; $attempt++) {
-                $code = rp_generate_code();
-                try {
-                    $stmt = $pdo->prepare(
-                        'INSERT INTO ' . RP_TABLE_REQUESTS . '
-                            (public_code, type, target_location, description, extra_comment,
-                             faculty, department, requester_name, requester_contact, status, lang,
-                             ip_address, user_agent, created_at, updated_at)
-                         VALUES (:code, :type, :target, :description, :comment,
-                                 :faculty, :department, :name, :contact, \'new\', :lang,
-                                 :ip, :ua, NOW(), NOW())'
-                    );
-                    $stmt->execute([
-                        'code'        => $code,
-                        'type'        => $values['type'],
-                        'target'      => $values['target'],
-                        'description' => $values['description'],
-                        'comment'     => $values['comment'] !== '' ? $values['comment'] : null,
-                        'faculty'     => $values['faculty'],
-                        'department'  => $values['department'],
-                        'name'        => $values['name'],
-                        'contact'     => $values['contact'],
-                        'lang'        => rp_lang(),
-                        'ip'          => rp_client_ip(),
-                        'ua'          => rp_user_agent(),
-                    ]);
-                    break;
-                } catch (PDOException $exception) {
-                    if ($attempt >= 5 || $exception->getCode() !== '23000') {
-                        throw $exception;
-                    }
-                }
-            }
-
-            $requestId = (int) $pdo->lastInsertId();
-            rp_log_history($pdo, $requestId, 'created', null, null, null, $values['name']);
-            $stored = rp_store_uploads($pdo, $requestId, $code, $files);
-
-            $pdo->commit();
-            unset($_SESSION['rp_csrf']);
-
-            rp_redirect('index.php?sent=' . urlencode($code));
-        } catch (Throwable $exception) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
-            rp_delete_stored_files($stored);
-            error_log('[request-portal] submit failed: ' . $exception->getMessage());
-            $errors[] = rp_config('app.debug', false)
-                ? $exception->getMessage()
-                : __('error.save_failed');
-        }
-    }
-}
-
-if (isset($_GET['sent']) && is_string($_GET['sent'])) {
-    $submitted = rp_clean_string($_GET['sent'], 20);
-}
-
-rp_header(__('form.title'));
+header('Content-Type: text/html; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: SAMEORIGIN');
+header('Referrer-Policy: same-origin');
 ?>
+<!DOCTYPE html>
+<html lang="<?= e($lang) ?>">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title><?= e(__('home.doc_title')) ?></title>
+    <link rel="icon" type="image/png" href="<?= e(rp_url('assets/logo-nufvsu.png')) ?>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="<?= e(rp_url('assets/home.css')) ?>?v=6">
+</head>
+<body class="home">
+    <div class="home-stage">
+        <div class="home-photo" aria-hidden="true"></div>
 
-<?php if ($submitted !== null && $submitted !== ''): ?>
-    <div class="card success-card">
-        <h1><?= e(__('success.title')) ?></h1>
-        <p><?= e(__('success.text', $submitted)) ?></p>
-        <p><a class="btn" href="<?= e(rp_url('index.php')) ?>"><?= e(__('success.new_one')) ?></a></p>
-    </div>
-<?php else: ?>
-    <div class="card">
-        <div class="page-head">
-            <h1><?= e(__('form.title')) ?></h1>
-            <?php rp_page_tip('form.page_tip', 'assets/help/requests.mp4', 'assets/help/requests.jpg'); ?>
-        </div>
-        <p class="muted"><?= e(__('form.intro')) ?></p>
-
-        <?php if ($errors): ?>
-            <div class="alert alert-error">
-                <strong><?= e(__('error.form_title')) ?></strong>
-                <ul>
-                    <?php foreach ($errors as $error): ?>
-                        <li><?= e($error) ?></li>
+        <header class="home-wrap home-top">
+            <a class="home-brand" href="<?= e(rp_url('index.php')) ?>">
+                <img src="<?= e(rp_url('assets/logo-nufvsu.png')) ?>" alt="<?= e(__('home.logo_alt')) ?>">
+            </a>
+            <nav class="home-nav" aria-label="<?= e(__('nav.home')) ?>">
+                <a href="<?= e(rp_url('addData.php')) ?>"><?= e(__('home.nav.request')) ?></a>
+                <a href="<?= e(rp_url('planAdd.php')) ?>"><?= e(__('home.nav.plan')) ?></a>
+                <a href="<?= e(rp_url('feedback.php')) ?>"><?= e(__('home.nav.feedback')) ?></a>
+            </nav>
+            <div class="home-tools">
+                <nav class="home-langs" aria-label="Language">
+                    <?php foreach (RP_LANGUAGES as $code): ?>
+                        <a class="<?= $code === $lang ? 'active' : '' ?>"
+                           href="<?= e(rp_lang_switch_url($code)) ?>"><?= e(strtoupper($code)) ?></a>
                     <?php endforeach; ?>
-                </ul>
+                </nav>
+               
             </div>
-        <?php endif; ?>
+        </header>
 
-        <form method="post" action="<?= e(rp_url('index.php')) ?>" enctype="multipart/form-data" novalidate>
-            <?= rp_csrf_field() ?>
-            <p class="honeypot">
-                <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
-            </p>
+        <main class="home-wrap home-main">
+            <section class="home-hero">
+                <p class="home-kicker"><?= e(__('home.banner')) ?></p>
+                <h1>
+                    <?= e(__('home.title.line1')) ?><br>
+                    <?= e(__('home.title.line2')) ?><br>
+                    <span class="home-title-accent"><?= e(__('home.title.accent')) ?></span>
+                </h1>
+                <p class="home-lead"><?= e(__('home.lead')) ?></p>
+            </section>
 
-            <fieldset class="field">
-                <legend><?= e(__('form.type')) ?> *</legend>
-                <?php foreach (rp_request_types() as $type): ?>
-                    <label class="radio">
-                        <input type="radio" name="type" value="<?= e($type) ?>"
-                            <?= $values['type'] === $type ? 'checked' : '' ?>>
-                        <span>
-                            <strong><?= e(rp_type_label($type)) ?></strong>
-                            <small><?= e(__('form.type.' . $type . '_hint')) ?></small>
-                        </span>
-                    </label>
-                <?php endforeach; ?>
-            </fieldset>
+            <section class="home-cards">
+                <a class="home-card" href="<?= e(rp_url('addData.php')) ?>">
+                    <span class="home-card-copy">
+                        <strong><?= e(__('home.card.request.title')) ?></strong>
+                        <small><?= e(__('home.card.request.text')) ?></small>
+                    </span>
+                    <span class="home-card-go" aria-hidden="true">→</span>
+                </a>
+                <a class="home-card" href="<?= e(rp_url('planAdd.php')) ?>">
+                    <span class="home-card-copy">
+                        <strong><?= e(__('home.card.plan.title')) ?></strong>
+                        <small><?= e(__('home.card.plan.text')) ?></small>
+                    </span>
+                    <span class="home-card-go" aria-hidden="true">→</span>
+                </a>
+                <a class="home-card" href="<?= e(rp_url('feedback.php')) ?>">
+                    <span class="home-card-copy">
+                        <strong><?= e(__('home.card.feedback.title')) ?></strong>
+                        <small><?= e(__('home.card.feedback.text')) ?></small>
+                    </span>
+                    <span class="home-card-go" aria-hidden="true">→</span>
+                </a>
+            </section>
+        </main>
 
-            <div class="field">
-                <label for="target"><?= e(__('form.target')) ?> *</label>
-                <input type="text" id="target" name="target" maxlength="1000"
-                       placeholder="<?= e(__('form.target_placeholder')) ?>"
-                       value="<?= e($values['target']) ?>">
-                <small><?= e(__('form.target_hint')) ?></small>
-            </div>
-
-            <div class="field">
-                <label for="description"><?= e(__('form.description')) ?> *</label>
-                <textarea id="description" name="description" rows="7" maxlength="20000"><?= e($values['description']) ?></textarea>
-                <small><?= e(__('form.description_hint')) ?></small>
-            </div>
-
-            <div class="field">
-                <label for="comment"><?= e(__('form.comment')) ?></label>
-                <textarea id="comment" name="comment" rows="3" maxlength="5000"><?= e($values['comment']) ?></textarea>
-                <small><?= e(__('form.comment_hint')) ?></small>
-            </div>
-
-            <div class="grid-2">
-                <div class="field">
-                    <label for="faculty"><?= e(__('form.faculty')) ?> *</label>
-                    <input type="text" id="faculty" name="faculty" maxlength="255" required value="<?= e($values['faculty']) ?>">
-                </div>
-                <div class="field">
-                    <label for="department"><?= e(__('form.department')) ?> *</label>
-                    <input type="text" id="department" name="department" maxlength="255" required value="<?= e($values['department']) ?>">
-                </div>
-            </div>
-
-            <div class="grid-2">
-                <div class="field">
-                    <label for="name"><?= e(__('form.name')) ?> *</label>
-                    <input type="text" id="name" name="name" maxlength="160" value="<?= e($values['name']) ?>">
-                </div>
-                <div class="field">
-                    <label for="contact"><?= e(__('form.contact')) ?> *</label>
-                    <input type="text" id="contact" name="contact" maxlength="255" value="<?= e($values['contact']) ?>">
-                    <small><?= e(__('form.contact_hint')) ?></small>
-                </div>
-            </div>
-
-            <div class="field">
-                <label for="attachments"><?= e(__('form.files')) ?></label>
-                <input type="file" id="attachments" name="attachments[]" multiple
-                       accept="<?= e(rp_accept_attribute()) ?>">
-                <small><?= e(__('form.files_hint', $maxFiles, rp_format_bytes($maxSize), implode(', ', rp_allowed_extensions()))) ?></small>
-                <small id="file-count" class="muted"></small>
-            </div>
-
-            <p class="muted"><?= e(__('common.required_hint')) ?></p>
-            <button type="submit" class="btn btn-primary"><?= e(__('common.submit')) ?></button>
-        </form>
+        <footer class="home-wrap home-foot">
+            <span><?= e(__('home.footer')) ?></span>
+            <a href="<?= e(rp_url('admin/login.php')) ?>"><?= e(__('nav.admin')) ?></a>
+        </footer>
     </div>
-
-    <script>
-        (function () {
-            var input = document.getElementById('attachments');
-            var label = document.getElementById('file-count');
-            if (!input || !label) return;
-            input.addEventListener('change', function () {
-                label.textContent = input.files.length
-                    ? <?= json_encode(__('form.files_selected'), JSON_UNESCAPED_UNICODE) ?>.replace('%d', input.files.length)
-                    : '';
-            });
-        })();
-    </script>
-<?php endif; ?>
-
-<?php rp_footer();
+</body>
+</html>

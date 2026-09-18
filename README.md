@@ -39,11 +39,36 @@ FLUSH PRIVILEGES;
 
 ### 3. Конфігурація
 
+Прод-конфіг у репозиторії зашифрований (`config.enc`). Сам `config.php` у git не кладемо.
+
+Production config is stored encrypted as `config.enc`. Plain `config.php` is gitignored.
+
+**Якщо є пароль до сховища / If you have the passphrase:**
+
+```bash
+# файл .config-pass з одним рядком-паролем (не комітити)
+printf '%s\n' 'ВАШ_ПАРОЛЬ' > .config-pass
+chmod 600 .config-pass
+php tools/config_crypt.php decrypt
+```
+
+Альтернатива: змінна середовища `RP_CONFIG_PASSPHRASE`.
+
+**Нове середовище без прод-пароля / Fresh install:**
+
 ```bash
 cp config.sample.php config.php
 ```
 
 У `config.php` заповніть блок `db` (host, name, user, pass). За бажанням змініть `app.name`, `app.site_url` (посилання на основний сайт), `app.default_lang`, ліміти в `uploads` і `security.rate_limit_per_hour`.
+
+Щоб оновити зашифрований файл після правок `config.php`:
+
+```bash
+php tools/config_crypt.php encrypt --force
+```
+
+Шифрування захищає від випадкового витоку (GitHub search, копія репи без ключа). Хто має і репозиторій, і пароль — має доступ до продакшн-БД. Пароль тримайте в менеджері паролів, не в git. Дамп MySQL і файли з `storage/uploads` у репі немає — це окремий бекап.
 
 ### 4. Права на теку вкладень
 
@@ -95,7 +120,7 @@ php tools/admin_user.php admin 'СКЛАДНИЙ_ПАРОЛЬ'
 client_max_body_size 220m;
 
 location ~* ^/requests/(includes|storage|sql|tools)/ { deny all; return 404; }
-location ~* ^/requests/(config\.php|config\.sample\.php|\.user\.ini) { deny all; return 404; }
+location ~* ^/requests/(config\.php|config\.sample\.php|config\.enc|\.config-pass|\.user\.ini) { deny all; return 404; }
 ```
 
 І збільште у `php.ini` (або пулі FPM): `upload_max_filesize = 200M`, `post_max_size = 220M`, `max_execution_time = 300`.
@@ -108,6 +133,8 @@ location ~* ^/requests/(config\.php|config\.sample\.php|\.user\.ini) { deny all;
 index.php                 публічна форма + обробка відправки
 install.php               одноразовий установник (видалити після встановлення)
 config.sample.php         зразок конфігурації → скопіювати в config.php
+config.enc                зашифрований прод-конфіг (розшифровка: tools/config_crypt.php)
+tools/config_crypt.php    CLI: encrypt / decrypt config.php
 admin/
   login.php  logout.php   вхід / вихід адміністратора
   index.php               список заявок: фільтри, пошук, пагінація
@@ -128,6 +155,7 @@ includes/
 sql/schema.sql            схема БД для ручного імпорту
 storage/uploads/          вкладення (поза вебдоступом)
 tools/admin_user.php      CLI: створити адміністратора / скинути пароль
+tools/config_crypt.php    CLI: шифрування config.php ↔ config.enc
 ```
 
 ## Таблиці / Tables

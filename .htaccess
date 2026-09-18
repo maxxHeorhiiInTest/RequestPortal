@@ -8,10 +8,12 @@ AddType video/mp4 .mp4
 AddType image/jpeg .jpg
 
 # Deny direct access to code, storage and configuration.
-RedirectMatch 404 (?i)^/?.*/(includes|storage|sql)/
+RedirectMatch 404 (?i)^/?.*/(includes|storage|sql|tools)/
 RedirectMatch 404 (?i)^/?.*/config(\.sample)?\.php$
+RedirectMatch 404 (?i)^/?.*/config\.enc$
+RedirectMatch 404 (?i)^/?\.config-pass$
 
-<FilesMatch "^(config\.php|config\.sample\.php|\.user\.ini|\.gitignore|README\.md)$">
+<FilesMatch "^(config\.php|config\.sample\.php|config\.enc|\.config-pass|\.user\.ini|\.gitignore|README\.md)$">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>

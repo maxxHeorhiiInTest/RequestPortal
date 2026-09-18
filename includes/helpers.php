@@ -83,6 +83,214 @@ function rp_clean_string(mixed $value, int $maxLength): string
     return mb_substr($value, 0, $maxLength, 'UTF-8');
 }
 
+/** True when the string has 7–15 digits (allows +380 50 123 45 67). */
+function rp_phone_looks_valid(string $phone): bool
+{
+    $digits = preg_replace('/\D+/', '', $phone) ?? '';
+
+    return strlen($digits) >= 7 && strlen($digits) <= 15;
+}
+
+/** Digits only, with a UA-friendly 380 prefix when the number looks local. */
+function rp_phone_digits(string $phone): string
+{
+    $digits = preg_replace('/\D+/', '', $phone) ?? '';
+    if ($digits === '') {
+        return '';
+    }
+    if (strlen($digits) === 10 && str_starts_with($digits, '0')) {
+        return '38' . $digits;
+    }
+    if (strlen($digits) === 9) {
+        return '380' . $digits;
+    }
+    if (strlen($digits) === 11 && str_starts_with($digits, '80')) {
+        return '3' . $digits;
+    }
+
+    return $digits;
+}
+
+/**
+ * Guess the messenger channel from a free-text contact field.
+ *
+ * @return array{channel: string, target: string, label: string}
+ */
+function rp_parse_messenger(string $raw): array
+{
+    $raw = trim($raw);
+    if ($raw === '') {
+        return ['channel' => '', 'target' => '', 'label' => ''];
+    }
+
+    if (preg_match('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', $raw, $match)) {
+        $email = $match[0];
+
+        return ['channel' => 'email', 'target' => $email, 'label' => $email];
+    }
+
+    if (preg_match('~(?:https?://)?(?:t|telegram)\.me/([A-Za-z0-9_]+)~i', $raw, $match)) {
+        $nick = $match[1];
+
+        return ['channel' => 'telegram', 'target' => $nick, 'label' => '@' . $nick];
+    }
+    if (preg_match('/^@([A-Za-z0-9_]{4,32})$/', $raw, $match)) {
+        $nick = $match[1];
+
+        return ['channel' => 'telegram', 'target' => $nick, 'label' => '@' . $nick];
+    }
+    if (preg_match('/(?:telegram|телеграм)\s*:?\s*@?([A-Za-z0-9_]{4,32})/iu', $raw, $match)) {
+        $nick = $match[1];
+
+        return ['channel' => 'telegram', 'target' => $nick, 'label' => '@' . $nick];
+    }
+
+    if (preg_match('~wa\.me/(\+?\d+)~i', $raw, $match)) {
+        $digits = rp_phone_digits($match[1]);
+
+        return ['channel' => 'whatsapp', 'target' => $digits, 'label' => '+' . $digits];
+    }
+    if (preg_match('/whatsapp|вотсап|ватсап/iu', $raw)) {
+        $digits = rp_phone_digits($raw);
+        if ($digits !== '') {
+            return ['channel' => 'whatsapp', 'target' => $digits, 'label' => '+' . $digits];
+        }
+    }
+
+    if (rp_phone_looks_valid($raw)) {
+        $digits = rp_phone_digits($raw);
+
+        return ['channel' => 'whatsapp', 'target' => $digits, 'label' => '+' . $digits];
+    }
+
+    return ['channel' => '', 'target' => $raw, 'label' => $raw];
+}
+
+/** @return list<string> */
+function rp_messenger_channels(): array
+{
+    return ['email', 'telegram', 'whatsapp'];
+}
+
+function rp_channel_label(string $channel): string
+{
+    if ($channel === '') {
+        return '';
+    }
+    $key   = 'form.channel.' . $channel;
+    $label = __($key);
+
+    return $label === $key ? $channel : $label;
+}
+
+function rp_telegram_nick(string $raw): string
+{
+    $raw = trim($raw);
+    if ($raw === '') {
+        return '';
+    }
+    if (preg_match('~(?:https?://)?(?:t|telegram)\.me/([A-Za-z0-9_]+)~i', $raw, $match)) {
+        return $match[1];
+    }
+    if (preg_match('/^@?([A-Za-z0-9_]{4,32})$/', $raw, $match)) {
+        return $match[1];
+    }
+
+    return '';
+}
+
+function rp_contact_matches_channel(string $channel, string $value): bool
+{
+    $value = trim($value);
+    if ($value === '' || !in_array($channel, rp_messenger_channels(), true)) {
+        return false;
+    }
+
+    return match ($channel) {
+        'email' => (bool) filter_var($value, FILTER_VALIDATE_EMAIL),
+        'telegram' => rp_telegram_nick($value) !== '',
+        'whatsapp' => rp_phone_looks_valid($value),
+        default => false,
+    };
+}
+
+/**
+ * Channels the admin can open for this feedback item.
+ *
+ * @return array{phone: string, email: string, telegram: string, whatsapp: string}
+ */
+function rp_feedback_reply_targets(array $feedback): array
+{
+    $phone   = rp_phone_digits((string) ($feedback['requester_phone'] ?? ''));
+    $contact = (string) ($feedback['requester_contact'] ?? '');
+    $channel = (string) ($feedback['requester_channel'] ?? '');
+    if (!in_array($channel, rp_messenger_channels(), true)) {
+        $channel = '';
+    }
+
+    $email    = '';
+    $telegram = '';
+    $whatsapp = '';
+
+    if ($channel === 'email') {
+        $parsed = rp_parse_messenger($contact);
+        $email  = $parsed['channel'] === 'email' ? $parsed['target'] : trim($contact);
+    } elseif ($channel === 'telegram') {
+        $telegram = rp_telegram_nick($contact);
+        if ($telegram === '') {
+            $telegram = ltrim(trim($contact), '@');
+        }
+    } elseif ($channel === 'whatsapp') {
+        $whatsapp = rp_phone_digits($contact);
+        if ($whatsapp === '') {
+            $whatsapp = $phone;
+        }
+    } else {
+        $parsed   = rp_parse_messenger($contact);
+        $email    = $parsed['channel'] === 'email' ? $parsed['target'] : '';
+        $telegram = $parsed['channel'] === 'telegram' ? $parsed['target'] : '';
+        $whatsapp = $parsed['channel'] === 'whatsapp' ? rp_phone_digits($parsed['target']) : '';
+        if ($whatsapp === '' && $phone !== '') {
+            $whatsapp = $phone;
+        }
+    }
+
+    return [
+        'phone'    => $phone,
+        'email'    => $email,
+        'telegram' => $telegram,
+        'whatsapp' => $whatsapp,
+    ];
+}
+
+/** @return list<string> */
+function rp_reply_channels(): array
+{
+    return ['email', 'telegram', 'whatsapp', 'phone'];
+}
+
+function rp_reply_launch_url(string $channel, string $target, string $body, string $subject = ''): ?string
+{
+    $target = trim($target);
+    if ($target === '' || !in_array($channel, rp_reply_channels(), true)) {
+        return null;
+    }
+
+    return match ($channel) {
+        'email' => 'mailto:' . $target . '?' . http_build_query(
+            array_filter(['subject' => $subject, 'body' => $body], static fn (string $value): bool => $value !== ''),
+            '',
+            '&',
+            PHP_QUERY_RFC3986
+        ),
+        'telegram' => 'https://t.me/' . rawurlencode(ltrim($target, '@')),
+        'whatsapp' => 'https://wa.me/' . rp_phone_digits($target)
+            . ($body !== '' ? '?text=' . rawurlencode($body) : ''),
+        'phone' => 'tel:+' . ltrim(rp_phone_digits($target), '+'),
+        default => null,
+    };
+}
+
 /** Human readable file size. */
 function rp_format_bytes(int $bytes): string
 {

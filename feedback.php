@@ -15,6 +15,8 @@ $values = [
     'faculty'    => '',
     'department' => '',
     'name'       => '',
+    'phone'      => '',
+    'channel'    => '',
     'contact'    => '',
 ];
 
@@ -32,6 +34,8 @@ if ($postOverflowed) {
     $values['faculty']    = rp_clean_string($_POST['faculty'] ?? '', 255);
     $values['department'] = rp_clean_string($_POST['department'] ?? '', 255);
     $values['name']       = rp_clean_string($_POST['name'] ?? '', 160);
+    $values['phone']      = rp_clean_string($_POST['phone'] ?? '', 80);
+    $values['channel']    = rp_clean_string($_POST['channel'] ?? '', 20);
     $values['contact']    = rp_clean_string($_POST['contact'] ?? '', 255);
 
     if (!rp_csrf_valid($_POST['csrf_token'] ?? null)) {
@@ -49,10 +53,17 @@ if ($postOverflowed) {
     if ($values['name'] === '') {
         $errors[] = __('error.name');
     }
-    if ($values['contact'] === '') {
-        $errors[] = __('error.contact');
-    } elseif (mb_strlen($values['contact']) < 4) {
-        $errors[] = __('error.contact_invalid');
+    if ($values['phone'] === '') {
+        $errors[] = __('error.phone');
+    } elseif (!rp_phone_looks_valid($values['phone'])) {
+        $errors[] = __('error.phone_invalid');
+    }
+    if (!in_array($values['channel'], rp_messenger_channels(), true)) {
+        $errors[] = __('error.channel');
+    } elseif ($values['contact'] === '') {
+        $errors[] = __('error.channel_contact');
+    } elseif (!rp_contact_matches_channel($values['channel'], $values['contact'])) {
+        $errors[] = __('error.channel_contact.' . $values['channel']);
     }
 
     if (rp_clean_string($_POST['website'] ?? '', 100) !== '') {
@@ -79,10 +90,10 @@ if ($postOverflowed) {
                 try {
                     $stmt = $pdo->prepare(
                         'INSERT INTO ' . RP_TABLE_FEEDBACK . '
-                            (public_code, message, faculty, department, requester_name, requester_contact,
-                             status, lang, ip_address, created_at, updated_at)
-                         VALUES (:code, :message, :faculty, :department, :name, :contact,
-                                 \'new\', :lang, :ip, NOW(), NOW())'
+                            (public_code, message, faculty, department, requester_name, requester_phone,
+                             requester_contact, requester_channel, status, lang, ip_address, created_at, updated_at)
+                         VALUES (:code, :message, :faculty, :department, :name, :phone,
+                                 :contact, :channel, \'new\', :lang, :ip, NOW(), NOW())'
                     );
                     $stmt->execute([
                         'code'       => $code,
@@ -90,7 +101,9 @@ if ($postOverflowed) {
                         'faculty'    => $values['faculty'],
                         'department' => $values['department'],
                         'name'       => $values['name'],
+                        'phone'      => $values['phone'],
                         'contact'    => $values['contact'],
+                        'channel'    => $values['channel'],
                         'lang'       => rp_lang(),
                         'ip'         => rp_client_ip(),
                     ]);
@@ -133,7 +146,10 @@ rp_header(__('feedback.title'));
     <div class="card success-card">
         <h1><?= e(__('success.title')) ?></h1>
         <p><?= e(__('feedback.success.text', $submitted)) ?></p>
-        <p><a class="btn" href="<?= e(rp_url('feedback.php')) ?>"><?= e(__('feedback.success.new')) ?></a></p>
+        <p>
+            <a class="btn btn-primary" href="<?= e(rp_url('feedback.php')) ?>"><?= e(__('feedback.success.new')) ?></a>
+            <a class="btn" href="<?= e(rp_url('index.php')) ?>"><?= e(__('nav.home')) ?></a>
+        </p>
     </div>
 <?php else: ?>
     <div class="card">
@@ -185,16 +201,36 @@ rp_header(__('feedback.title'));
                 </div>
             </div>
 
-            <div class="grid-2">
-                <div class="field">
-                    <label for="name"><?= e(__('form.name')) ?> *</label>
-                    <input type="text" id="name" name="name" maxlength="160" required value="<?= e($values['name']) ?>">
+            <div class="field">
+                <label for="name"><?= e(__('form.name')) ?> *</label>
+                <input type="text" id="name" name="name" maxlength="160" required value="<?= e($values['name']) ?>">
+            </div>
+
+            <div class="field">
+                <label for="phone"><?= e(__('form.phone')) ?> *</label>
+                <input type="tel" id="phone" name="phone" maxlength="80" required
+                       autocomplete="tel" value="<?= e($values['phone']) ?>">
+                <small><?= e(__('form.phone_hint')) ?></small>
+            </div>
+
+            <fieldset class="field">
+                <legend><?= e(__('form.channel')) ?> *</legend>
+                <div class="channel-picks">
+                    <?php foreach (rp_messenger_channels() as $channel): ?>
+                        <label class="radio">
+                            <input type="radio" name="channel" value="<?= e($channel) ?>"
+                                <?= $values['channel'] === $channel ? 'checked' : '' ?>>
+                            <span><?= e(rp_channel_label($channel)) ?></span>
+                        </label>
+                    <?php endforeach; ?>
                 </div>
-                <div class="field">
-                    <label for="contact"><?= e(__('form.contact')) ?> *</label>
-                    <input type="text" id="contact" name="contact" maxlength="255" required value="<?= e($values['contact']) ?>">
-                    <small><?= e(__('form.contact_hint')) ?></small>
-                </div>
+            </fieldset>
+
+            <div class="field">
+                <label for="contact" id="contact-label"><?= e(__('form.channel_contact')) ?> *</label>
+                <input type="text" id="contact" name="contact" maxlength="255" required
+                       value="<?= e($values['contact']) ?>">
+                <small id="contact-hint"><?= e(__('form.channel_contact_hint')) ?></small>
             </div>
 
             <p class="muted"><?= e(__('common.required_hint')) ?></p>
@@ -205,12 +241,58 @@ rp_header(__('feedback.title'));
         (function () {
             var input = document.getElementById('attachments');
             var label = document.getElementById('file-count');
-            if (!input || !label) return;
-            input.addEventListener('change', function () {
-                label.textContent = input.files.length
-                    ? <?= json_encode(__('form.files_selected'), JSON_UNESCAPED_UNICODE) ?>.replace('%d', input.files.length)
-                    : '';
+            if (input && label) {
+                input.addEventListener('change', function () {
+                    label.textContent = input.files.length
+                        ? <?= json_encode(__('form.files_selected'), JSON_UNESCAPED_UNICODE) ?>.replace('%d', input.files.length)
+                        : '';
+                });
+            }
+
+            var form = document.querySelector('form');
+            if (!form) return;
+            var phone = document.getElementById('phone');
+            var contact = document.getElementById('contact');
+            var contactLabel = document.getElementById('contact-label');
+            var contactHint = document.getElementById('contact-hint');
+            var copy = <?= json_encode([
+                'email' => [
+                    'label' => __('form.channel_contact.email') . ' *',
+                    'hint'  => __('form.channel_hint.email'),
+                    'type'  => 'email',
+                ],
+                'telegram' => [
+                    'label' => __('form.channel_contact.telegram') . ' *',
+                    'hint'  => __('form.channel_hint.telegram'),
+                    'type'  => 'text',
+                ],
+                'whatsapp' => [
+                    'label' => __('form.channel_contact.whatsapp') . ' *',
+                    'hint'  => __('form.channel_hint.whatsapp'),
+                    'type'  => 'tel',
+                ],
+            ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?>;
+            var lastChannel = '';
+            function selectedChannel() {
+                var checked = form.querySelector('input[name="channel"]:checked');
+                return checked ? checked.value : '';
+            }
+            function syncChannel() {
+                var channel = selectedChannel();
+                var meta = copy[channel];
+                if (!meta || !contact || !contactLabel || !contactHint) return;
+                contactLabel.textContent = meta.label;
+                contactHint.textContent = meta.hint;
+                contact.type = meta.type;
+                contact.setAttribute('placeholder', meta.hint);
+                if (channel === 'whatsapp' && phone && !contact.value && phone.value) {
+                    contact.value = phone.value;
+                }
+            }
+            form.querySelectorAll('input[name="channel"]').forEach(function (radio) {
+                radio.addEventListener('change', syncChannel);
             });
+            syncChannel();
         })();
     </script>
 <?php endif; ?>

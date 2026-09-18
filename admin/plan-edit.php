@@ -138,7 +138,13 @@ rp_header($pageTitle, 'admin');
 ?>
 <div class="card">
     <h1><?= e($pageTitle) ?></h1>
-    <p class="muted"><?= e(__('content.intro')) ?></p>
+    <?php if ($existing && rp_content_is_public($existing['created_by'] ?? null)): ?>
+        <p class="alert"><?= e(__('content.source.site_long')) ?>
+            <?= e(__('content.inbox.submitted')) ?>:
+            <?= e(rp_format_datetime((string) $existing['created_at'])) ?></p>
+    <?php else: ?>
+        <p class="muted"><?= e(__('content.intro')) ?></p>
+    <?php endif; ?>
 
     <?php if ($errors): ?>
         <div class="alert alert-error">
@@ -220,5 +226,13 @@ rp_header($pageTitle, 'admin');
         <button type="submit" class="btn btn-primary"><?= e(__('common.save')) ?></button>
         <a class="btn" href="<?= e(rp_url('admin/plan.php')) ?>"><?= e(__('common.back')) ?></a>
     </form>
+    <?php if ($existing): ?>
+        <form method="post" action="<?= e(rp_url('admin/plan-delete.php')) ?>" class="delete-block"
+              onsubmit='return confirm(<?= json_encode(__('content.delete_confirm'), JSON_UNESCAPED_UNICODE) ?>);'>
+            <?= rp_csrf_field() ?>
+            <input type="hidden" name="id" value="<?= (int) $id ?>">
+            <button type="submit" class="btn btn-danger"><?= e(__('content.delete')) ?></button>
+        </form>
+    <?php endif; ?>
 </div>
 <?php rp_footer();

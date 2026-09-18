@@ -16,7 +16,10 @@ if (version_compare(PHP_VERSION, RP_MIN_PHP, '<')) {
 $configFile = RP_ROOT . '/config.php';
 if (!is_file($configFile)) {
     http_response_code(500);
-    exit('config.php not found. Copy config.sample.php to config.php and fill in the database credentials.');
+    $hint = is_file(RP_ROOT . '/config.enc')
+        ? 'Decrypt with: php tools/config_crypt.php decrypt'
+        : 'Copy config.sample.php to config.php and fill in the database credentials.';
+    exit('config.php not found. ' . $hint);
 }
 
 /** @var array<string,mixed> $RP_CONFIG */
@@ -71,3 +74,7 @@ if (PHP_SAPI !== 'cli' && session_status() !== PHP_SESSION_ACTIVE) {
 }
 
 rp_init_language();
+
+if (PHP_SAPI !== 'cli') {
+    rp_track_visit();
+}

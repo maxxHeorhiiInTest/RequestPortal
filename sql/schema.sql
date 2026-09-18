@@ -97,7 +97,9 @@ CREATE TABLE IF NOT EXISTS rp_feedback (
     faculty VARCHAR(255) NOT NULL DEFAULT '',
     department VARCHAR(255) NOT NULL DEFAULT '',
     requester_name VARCHAR(160) NOT NULL,
+    requester_phone VARCHAR(80) NOT NULL DEFAULT '',
     requester_contact VARCHAR(255) NOT NULL,
+    requester_channel VARCHAR(20) NOT NULL DEFAULT '',
     status ENUM('new', 'in_progress', 'done', 'rejected') NOT NULL DEFAULT 'new',
     admin_note TEXT NULL,
     lang CHAR(2) NOT NULL DEFAULT 'uk',
@@ -139,4 +141,26 @@ CREATE TABLE IF NOT EXISTS rp_feedback_history (
     KEY idx_feedback_created (feedback_id, created_at),
     CONSTRAINT fk_feedback_history FOREIGN KEY (feedback_id)
         REFERENCES rp_feedback (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rp_page_visits (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    path VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45) NULL,
+    session_id VARCHAR(128) NULL,
+    user_agent VARCHAR(255) NULL,
+    lang CHAR(2) NULL,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_created (created_at),
+    KEY idx_path_created (path, created_at),
+    KEY idx_ip_created (ip_address, created_at),
+    KEY idx_session_path_created (session_id, path, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rp_hidden_holidays (
+    holiday_key VARCHAR(80) NOT NULL,
+    hidden_by VARCHAR(160) NOT NULL,
+    hidden_at DATETIME NOT NULL,
+    PRIMARY KEY (holiday_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

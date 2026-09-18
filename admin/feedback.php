@@ -36,7 +36,7 @@ if ($filters['status'] !== '') {
 }
 if ($filters['q'] !== '') {
     $like    = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $filters['q']) . '%';
-    $columns = ['f.public_code', 'f.requester_name', 'f.requester_contact', 'f.faculty', 'f.department', 'f.message'];
+    $columns = ['f.public_code', 'f.requester_name', 'f.requester_phone', 'f.requester_contact', 'f.requester_channel', 'f.faculty', 'f.department', 'f.message'];
     $parts   = [];
     foreach ($columns as $index => $column) {
         $parts[]              = $column . ' LIKE :q' . $index . " ESCAPE '\\\\'";
@@ -64,7 +64,8 @@ $pages = max(1, (int) ceil($total / RP_FEEDBACK_PER_PAGE));
 $page  = max(1, min($pages, (int) ($_GET['page'] ?? 1)));
 
 $listStmt = $pdo->prepare(
-    'SELECT f.*, (SELECT COUNT(*) FROM ' . RP_TABLE_FEEDBACK_FILES . ' x WHERE x.feedback_id = f.id) AS file_count
+    'SELECT f.*, (SELECT COUNT(*) FROM ' . RP_TABLE_FEEDBACK_FILES . ' x WHERE x.feedback_id = f.id) AS file_count,
+            (SELECT COUNT(*) FROM ' . RP_TABLE_FEEDBACK_HISTORY . ' h WHERE h.feedback_id = f.id AND h.action = \'replied\') AS reply_count
      FROM ' . RP_TABLE_FEEDBACK . ' f'
     . $whereSql .
     ' ORDER BY f.created_at DESC, f.id DESC
@@ -142,7 +143,18 @@ rp_header(__('admin.section.feedback'), 'admin');
                         <td><?= e(mb_strimwidth((string) $row['message'], 0, 80, '…', 'UTF-8')) ?></td>
                         <td>
                             <?= e((string) $row['requester_name']) ?>
-                            <small class="meta"><?= e((string) $row['requester_contact']) ?></small>
+                            <?php if (trim((string) ($row['requester_phone'] ?? '')) !== ''): ?>
+                                <small class="meta"><?= e((string) $row['requester_phone']) ?></small>
+                            <?php endif; ?>
+                            <?php
+                            $channelLabel = rp_channel_label((string) ($row['requester_channel'] ?? ''));
+                            $contactLine  = trim((string) $row['requester_contact']);
+                            if ($channelLabel !== '' && $contactLine !== ''):
+                            ?>
+                                <small class="meta"><?= e($channelLabel) ?>: <?= e($contactLine) ?></small>
+                            <?php elseif ($contactLine !== ''): ?>
+                                <small class="meta"><?= e($contactLine) ?></small>
+                            <?php endif; ?>
                             <?php
                             $unit = trim((string) ($row['faculty'] ?? '') . ' / ' . (string) ($row['department'] ?? ''), ' /');
                             if ($unit !== ''):
@@ -155,6 +167,9 @@ rp_header(__('admin.section.feedback'), 'admin');
                             <span class="badge status-<?= e((string) $row['status']) ?>">
                                 <?= e(rp_status_label((string) $row['status'])) ?>
                             </span>
+                            <?php if ((int) ($row['reply_count'] ?? 0) > 0): ?>
+                                <small class="meta"><?= e(__('admin.feedback.replied')) ?></small>
+                            <?php endif; ?>
                         </td>
                         <td>
                             <a class="btn btn-small"

@@ -17,10 +17,12 @@ if (!is_file($configFile)) {
     echo '<!DOCTYPE html><html lang="uk"><meta charset="utf-8"><title>config.php</title>'
         . '<body style="font:15px/1.6 system-ui;max-width:640px;margin:40px auto;padding:0 16px">'
         . '<h1>config.php</h1>'
-        . '<p><strong>UA:</strong> Скопіюйте <code>config.sample.php</code> у <code>config.php</code> '
-        . 'і вкажіть дані підключення до MySQL, потім перезавантажте цю сторінку.</p>'
-        . '<p><strong>EN:</strong> Copy <code>config.sample.php</code> to <code>config.php</code>, '
-        . 'fill in the MySQL credentials and reload this page.</p>';
+        . '<p><strong>UA:</strong> Розшифруйте прод-конфіг: <code>php tools/config_crypt.php decrypt</code> '
+        . '(потрібен файл <code>.config-pass</code> або змінна <code>RP_CONFIG_PASSPHRASE</code>). '
+        . 'Або скопіюйте <code>config.sample.php</code> у <code>config.php</code> і вкажіть дані MySQL.</p>'
+        . '<p><strong>EN:</strong> Decrypt the production config: <code>php tools/config_crypt.php decrypt</code> '
+        . '(needs <code>.config-pass</code> or <code>RP_CONFIG_PASSPHRASE</code>). '
+        . 'Or copy <code>config.sample.php</code> to <code>config.php</code> and fill in MySQL credentials.</p>';
     exit;
 }
 
@@ -173,10 +175,12 @@ header('Content-Type: text/html; charset=utf-8');
 
         <?php if ($done): ?>
             <p><strong>UA:</strong> Готово. Видаліть файл <code>install.php</code> з сервера, після чого користуйтеся
-                <a href="<?= e(rp_url('index.php')) ?>">формою заявок</a> та
+                <a href="<?= e(rp_url('index.php')) ?>">головною сторінкою</a>,
+                <a href="<?= e(rp_url('addData.php')) ?>">формою заявок</a> та
                 <a href="<?= e(rp_url('admin/login.php')) ?>">панеллю адміністратора</a>.</p>
             <p><strong>EN:</strong> Done. Delete <code>install.php</code> from the server, then use the
-                <a href="<?= e(rp_url('index.php')) ?>">request form</a> and the
+                <a href="<?= e(rp_url('index.php')) ?>">home page</a>,
+                <a href="<?= e(rp_url('addData.php')) ?>">request form</a> and the
                 <a href="<?= e(rp_url('admin/login.php')) ?>">admin panel</a>.</p>
         <?php elseif ($alreadySetUp): ?>
             <p><strong>UA:</strong> Портал уже встановлено, адміністратор існує. Видаліть <code>install.php</code>.</p>
