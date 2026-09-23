@@ -94,16 +94,17 @@ def chrome(active: str) -> Image.Image:
         ("requests", "Заявки на сайт"),
         ("plan", "Додати анонс"),
         ("feedback", "Питання / пропозиції"),
+        ("it", "Заявка до IT-відділу"),
     ]
     x = 40
     for key, label in tabs:
-        fnt = font(16, True)
+        fnt = font(14, True)
         tw = d.textlength(label, font=fnt)
         color = PRIMARY if key == active else MUTED
-        d.text((x, y), label, font=fnt, fill=color)
+        d.text((x, y + 2), label, font=fnt, fill=color)
         if key == active:
             d.line((x, 116, x + tw, 116), fill=PRIMARY, width=3)
-        x += tw + 28
+        x += tw + 20
     return img
 
 
@@ -271,6 +272,58 @@ def draw_plan(state: dict):
     return img, boxes
 
 
+def draw_it(state: dict):
+    img = chrome("it")
+    d = ImageDraw.Draw(img)
+    round_rect(d, (32, 128, W - 32, H - CAPTION_H - 12), 8, CARD, BORDER)
+    d.text((56, 140), "Заявка до IT-відділу", font=font(22, True), fill=TEXT)
+    if state.get("success"):
+        d.text((56, 210), "Заявку надіслано", font=font(28, True), fill=PRIMARY)
+        d.text((56, 258), "Дякуємо! Заявку до IT-відділу зареєстровано під номером", font=font(18), fill=TEXT)
+        round_rect(d, (56, 308, 430, 368), 8, "#e8f1fb", PRIMARY)
+        d.text((76, 324), state["success"], font=font(22, True), fill=PRIMARY_DARK)
+        d.text((56, 392), "Співробітник IT-відділу побачить заявку на дошці.", font=font(18), fill=TEXT)
+        caption_bar(img, state["caption"])
+        return img, {}
+
+    d.text((56, 168), "Опишіть проблему — заявка потрапить до співробітника IT-відділу.", font=font(13), fill=MUTED)
+    hl = state.get("hl")
+    boxes = {}
+
+    d.text((56, 196), "Тип звернення *", font=font(13, True), fill=TEXT)
+    type_box = (56, 216, 760, 260)
+    round_rect(d, type_box, 6, "#fffbeb" if hl == "category" else WHITE, HIGHLIGHT if hl == "category" else BORDER, 3 if hl == "category" else 1)
+    selected = state.get("category", "")
+    x = 72
+    for key, label in (
+        ("printer", "Принтер"),
+        ("cartridge", "Картридж"),
+        ("computer", "Комп’ютер"),
+        ("network", "Мережа"),
+        ("other", "Інше"),
+    ):
+        on = selected == key
+        d.ellipse((x, 230, x + 16, 246), outline=PRIMARY, width=2)
+        if on:
+            d.ellipse((x + 4, 234, x + 12, 242), fill=PRIMARY)
+        d.text((x + 22, 228), label, font=font(13, True if on else False), fill=TEXT)
+        x += 138
+    boxes["category"] = type_box
+
+    boxes["name"] = field(d, 56, 274, 350, 32, "Ім’я та прізвище співробітника *", state.get("name", ""), hl == "name")
+    boxes["phone"] = field(d, 426, 274, 350, 32, "Контактний номер *", state.get("phone", ""), hl == "phone", "+380 50 123 45 67")
+    boxes["building"] = field(d, 56, 334, 350, 32, "Корпус *", state.get("building", ""), hl == "building")
+    boxes["room"] = field(d, 426, 334, 350, 32, "Номер кабінету *", state.get("room", ""), hl == "room")
+    boxes["message"] = field(d, 56, 394, 720, 48, "Короткий опис проблеми *", state.get("message", ""), hl == "message")
+
+    btn = (56, 468, 360, 508)
+    round_rect(d, btn, 6, PRIMARY_DARK if hl == "submit" else PRIMARY)
+    d.text((78, 478), "Надіслати заявку до IT", font=font(16, True), fill=WHITE)
+    boxes["submit"] = btn
+    caption_bar(img, state["caption"])
+    return img, boxes
+
+
 def box_point(box) -> tuple[int, int]:
     return (int((box[0] + box[2]) / 2), int(box[1] + 8))
 
@@ -343,7 +396,7 @@ def main() -> None:
 
     request_story = [
         {"caption": "Ця сторінка — щоб попросити розмістити або виправити інформацію на сайті.", "hl": None, "hold": 2.8, "point": None, "move": False},
-        {"caption": "Питання — вкладка «Питання / пропозиції». Майбутня подія — «Додати анонс».", "hl": None, "hold": 3.2, "point": None, "move": False},
+        {"caption": "Питання — «Питання / пропозиції». Подія — «Додати анонс». Техніка — «Заявка до IT-відділу».", "hl": None, "hold": 3.2, "point": None, "move": False},
         {"caption": "Оберіть тип: нове розміщення — якщо цього ще немає на сайті.", "hl": "type", "type": "new", "hold": 3.0, "point": "type", "click": True},
         {"caption": "Напишіть, де саме це має бути: посилання на сторінку або назва розділу.", "hl": "target", "type": "new", "target": "Новини → Оголошення", "hold": 3.2, "point": "target", "click": True},
         {"caption": "Своїми словами опишіть, що треба зробити. Чим зрозуміліше — тим швидше допоможуть.", "hl": "description", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "hold": 3.4, "point": "description", "click": True},
@@ -366,7 +419,7 @@ def main() -> None:
     }
     feedback_story = [
         {"caption": "Ця сторінка — для запитання або пропозиції. Реєструватися не потрібно.", "hl": None, "hold": 2.8, "point": None, "move": False},
-        {"caption": "Змінити сайт — «Заявки на сайт». Майбутня подія — «Додати анонс».", "hl": None, "hold": 3.2, "point": None, "move": False},
+        {"caption": "Сайт — «Заявки на сайт». Подія — «Додати анонс». Техніка — «Заявка до IT-відділу».", "hl": None, "hold": 3.2, "point": None, "move": False},
         {"caption": "У полі «Питання / пропозиція» напишіть звернення своїми словами.", "hl": "message", "message": filled["message"], "hold": 3.2, "point": "message", "click": True},
         {"caption": "Фото чи документ можна додати, якщо це допоможе. Можна нічого не додавати.", "hl": "files", "message": filled["message"], "hold": 2.6, "point": "files"},
         {"caption": "Обов’язково вкажіть факультет і кафедру.", "hl": "faculty", "message": filled["message"], "faculty": filled["faculty"], "department": filled["department"], "hold": 2.8, "point": "faculty", "click": True},
@@ -381,7 +434,7 @@ def main() -> None:
 
     plan_story = [
         {"caption": "Ця сторінка — щоб повідомити про майбутню подію. Реєструватися не потрібно.", "hl": None, "hold": 2.8, "point": None, "move": False},
-        {"caption": "Змінити сайт — «Заявки на сайт». Питання — «Питання / пропозиції».", "hl": None, "hold": 3.2, "point": None, "move": False},
+        {"caption": "Сайт — «Заявки на сайт». Питання — «Питання / пропозиції». Техніка — «Заявка до IT-відділу».", "hl": None, "hold": 3.2, "point": None, "move": False},
         {"caption": "Напишіть коротку назву події.", "hl": "title", "title": "Кубок університету з футболу", "hold": 2.8, "point": "title", "click": True},
         {"caption": "Оберіть дату і час. Минулу дату поставити не можна.", "hl": "when", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "hold": 3.0, "point": "when", "click": True},
         {"caption": "Вкажіть підрозділ і відповідальну особу.", "hl": "responsible", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "department": "Кафедра футболу", "responsible": "Іван Петренко", "hold": 3.0, "point": "responsible", "click": True},
@@ -392,7 +445,28 @@ def main() -> None:
     ]
     render_story(draw_plan, plan_story, OUT / "plan.mp4", OUT / "plan.jpg")
 
-    for name in ("requests.mp4", "feedback.mp4", "plan.mp4"):
+    it_filled = {
+        "category": "printer",
+        "name": "Іван Петренко",
+        "phone": "+380 50 123 45 67",
+        "building": "Корпус 1",
+        "room": "215",
+        "message": "Принтер не друкує, блимає червона лампочка.",
+    }
+    it_story = [
+        {"caption": "Ця сторінка — щоб повідомити IT-відділ про технічну проблему.", "hl": None, "hold": 2.8, "point": None, "move": False},
+        {"caption": "Сайт — «Заявки на сайт». Подія — «Додати анонс». Питання — «Питання / пропозиції».", "hl": None, "hold": 3.2, "point": None, "move": False},
+        {"caption": "Оберіть тип звернення: принтер, картридж, комп’ютер, мережа або інше.", "hl": "category", "category": "printer", "hold": 3.2, "point": "category", "click": True},
+        {"caption": "Напишіть ім’я та прізвище співробітника.", "hl": "name", "category": "printer", "name": it_filled["name"], "hold": 2.6, "point": "name", "click": True},
+        {"caption": "У полі «Контактний номер» вкажіть телефон.", "hl": "phone", "category": "printer", "name": it_filled["name"], "phone": it_filled["phone"], "hold": 2.8, "point": "phone", "click": True},
+        {"caption": "Вкажіть корпус і номер кабінету.", "hl": "building", "category": "printer", "name": it_filled["name"], "phone": it_filled["phone"], "building": it_filled["building"], "room": it_filled["room"], "hold": 2.8, "point": "building", "click": True},
+        {"caption": "Коротко опишіть проблему своїми словами.", "hl": "message", **it_filled, "hold": 3.2, "point": "message", "click": True},
+        {"caption": "Натисніть синю кнопку «Надіслати заявку до IT».", "hl": "submit", **it_filled, "hold": 2.4, "point": "submit", "click": True},
+        {"caption": "З’явиться номер заявки. Запишіть його або сфотографуйте екран.", "success": "IT-2026-XXXXXX", "hold": 3.8, "point": None, "move": False},
+    ]
+    render_story(draw_it, it_story, OUT / "it.mp4", OUT / "it.jpg")
+
+    for name in ("requests.mp4", "feedback.mp4", "plan.mp4", "it.mp4"):
         path = OUT / name
         print(f"{name} {path.stat().st_size / 1024:.0f} KB")
 

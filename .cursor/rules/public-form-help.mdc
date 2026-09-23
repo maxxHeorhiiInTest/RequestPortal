@@ -5,11 +5,11 @@ alwaysApply: true
 
 # Public form help stays current
 
-If you change a public form (`addData.php`, `planAdd.php`, `feedback.php`) or its field labels, you also update the help in the same turn. Do not wait for the user to ask.
+If you change a public form (`addData.php`, `planAdd.php`, `feedback.php`, `itAdd.php`) or its field labels, you also update the help in the same turn. Do not wait for the user to ask.
 
-1. Rewrite `form.page_tip`, `content.public.page_tip`, and/or `feedback.page_tip` in both `includes/lang/uk.php` and `includes/lang/en.php`. Steps must match the live field order and exact labels. Cross-link the other two tabs by their tab names: «Заявки на сайт» / Site requests, «Додати анонс» / Add announcement, «Питання / пропозиції» / Questions / suggestions.
+1. Rewrite `form.page_tip`, `content.public.page_tip`, `feedback.page_tip`, and/or `it.page_tip` in both `includes/lang/uk.php` and `includes/lang/en.php`. Steps must match the live field order and exact labels. Cross-link the other tabs by their tab names: «Заявки на сайт» / Site requests, «Додати анонс» / Add announcement, «Питання / пропозиції» / Questions / suggestions, «Заявка до IT-відділу» / IT request.
 2. Update `tools/make_help_videos.py` so the drawn mock and captions match those fields (Ukrainian on-screen text).
-3. Regenerate the clips: `python3 tools/make_help_videos.py`. This writes `assets/help/{requests,plan,feedback}.{mp4,jpg}`.
+3. Regenerate the clips: `python3 tools/make_help_videos.py`. This writes `assets/help/{requests,plan,feedback,it}.{mp4,jpg}`.
 4. Copy the new help files into Docker when that environment is how the user previews the app.
 
 `rp_page_tip()` already cache-busts video/poster URLs with `filemtime`. Do not skip the video because “the tip text is enough”.

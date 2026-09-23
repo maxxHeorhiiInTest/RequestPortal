@@ -28,8 +28,9 @@ if ($since === '') {
         ->format('Y-m-d H:i:s');
 }
 
-$pdo   = rp_db();
-$items = [];
+$pdo     = rp_db();
+$items   = [];
+$fullInbox = rp_admin_can('requests');
 
 $snippet = static function (string $text): string {
     $text = trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
@@ -37,64 +38,88 @@ $snippet = static function (string $text): string {
     return mb_strimwidth($text, 0, 90, '…', 'UTF-8');
 };
 
-$stmt = $pdo->prepare(
-    'SELECT id, public_code, description, requester_name, created_at
-     FROM ' . RP_TABLE_REQUESTS . '
-     WHERE created_at >= :since
-     ORDER BY created_at ASC, id ASC
-     LIMIT 20'
-);
-$stmt->execute(['since' => $since]);
-foreach ($stmt->fetchAll() as $row) {
-    $items[] = [
-        'kind'    => 'request',
-        'id'      => (int) $row['id'],
-        'code'    => (string) $row['public_code'],
-        'title'   => $snippet((string) $row['description']),
-        'who'     => (string) $row['requester_name'],
-        'url'     => rp_url('admin/view.php?id=' . (int) $row['id']),
-        'created' => (string) $row['created_at'],
-    ];
+if ($fullInbox) {
+    $stmt = $pdo->prepare(
+        'SELECT id, public_code, description, requester_name, created_at
+         FROM ' . RP_TABLE_REQUESTS . '
+         WHERE created_at >= :since
+         ORDER BY created_at ASC, id ASC
+         LIMIT 20'
+    );
+    $stmt->execute(['since' => $since]);
+    foreach ($stmt->fetchAll() as $row) {
+        $items[] = [
+            'kind'    => 'request',
+            'id'      => (int) $row['id'],
+            'code'    => (string) $row['public_code'],
+            'title'   => $snippet((string) $row['description']),
+            'who'     => (string) $row['requester_name'],
+            'url'     => rp_url('admin/view.php?id=' . (int) $row['id']),
+            'created' => (string) $row['created_at'],
+        ];
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT id, public_code, message, requester_name, created_at
+         FROM ' . RP_TABLE_FEEDBACK . '
+         WHERE created_at >= :since
+         ORDER BY created_at ASC, id ASC
+         LIMIT 20'
+    );
+    $stmt->execute(['since' => $since]);
+    foreach ($stmt->fetchAll() as $row) {
+        $items[] = [
+            'kind'    => 'feedback',
+            'id'      => (int) $row['id'],
+            'code'    => (string) $row['public_code'],
+            'title'   => $snippet((string) $row['message']),
+            'who'     => (string) $row['requester_name'],
+            'url'     => rp_url('admin/feedback-view.php?id=' . (int) $row['id']),
+            'created' => (string) $row['created_at'],
+        ];
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT id, title, department, created_at
+         FROM ' . RP_TABLE_CONTENT . "
+         WHERE created_by LIKE 'guest:%' AND created_at >= :since
+         ORDER BY created_at ASC, id ASC
+         LIMIT 20"
+    );
+    $stmt->execute(['since' => $since]);
+    foreach ($stmt->fetchAll() as $row) {
+        $items[] = [
+            'kind'    => 'plan',
+            'id'      => (int) $row['id'],
+            'code'    => '',
+            'title'   => $snippet((string) $row['title']),
+            'who'     => (string) $row['department'],
+            'url'     => rp_url('admin/plan-edit.php?id=' . (int) $row['id']),
+            'created' => (string) $row['created_at'],
+        ];
+    }
 }
 
-$stmt = $pdo->prepare(
-    'SELECT id, public_code, message, requester_name, created_at
-     FROM ' . RP_TABLE_FEEDBACK . '
-     WHERE created_at >= :since
-     ORDER BY created_at ASC, id ASC
-     LIMIT 20'
-);
-$stmt->execute(['since' => $since]);
-foreach ($stmt->fetchAll() as $row) {
-    $items[] = [
-        'kind'    => 'feedback',
-        'id'      => (int) $row['id'],
-        'code'    => (string) $row['public_code'],
-        'title'   => $snippet((string) $row['message']),
-        'who'     => (string) $row['requester_name'],
-        'url'     => rp_url('admin/feedback-view.php?id=' . (int) $row['id']),
-        'created' => (string) $row['created_at'],
-    ];
-}
-
-$stmt = $pdo->prepare(
-    'SELECT id, title, department, created_at
-     FROM ' . RP_TABLE_CONTENT . "
-     WHERE created_by LIKE 'guest:%' AND created_at >= :since
-     ORDER BY created_at ASC, id ASC
-     LIMIT 20"
-);
-$stmt->execute(['since' => $since]);
-foreach ($stmt->fetchAll() as $row) {
-    $items[] = [
-        'kind'    => 'plan',
-        'id'      => (int) $row['id'],
-        'code'    => '',
-        'title'   => $snippet((string) $row['title']),
-        'who'     => (string) $row['department'],
-        'url'     => rp_url('admin/plan-edit.php?id=' . (int) $row['id']),
-        'created' => (string) $row['created_at'],
-    ];
+if (rp_admin_can('it')) {
+    $stmt = $pdo->prepare(
+        'SELECT id, public_code, description, requester_name, created_at
+         FROM ' . RP_TABLE_IT . '
+         WHERE created_at >= :since
+         ORDER BY created_at ASC, id ASC
+         LIMIT 20'
+    );
+    $stmt->execute(['since' => $since]);
+    foreach ($stmt->fetchAll() as $row) {
+        $items[] = [
+            'kind'    => 'it',
+            'id'      => (int) $row['id'],
+            'code'    => (string) $row['public_code'],
+            'title'   => $snippet((string) $row['description']),
+            'who'     => (string) $row['requester_name'],
+            'url'     => rp_url('admin/it-view.php?id=' . (int) $row['id']),
+            'created' => (string) $row['created_at'],
+        ];
+    }
 }
 
 usort($items, static function (array $a, array $b): int {

@@ -25,7 +25,7 @@ header('Referrer-Policy: same-origin');
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= e(rp_url('assets/home.css')) ?>?v=6">
+    <link rel="stylesheet" href="<?= e(rp_url('assets/home.css')) ?>?v=7">
 </head>
 <body class="home">
     <div class="home-stage">
@@ -39,6 +39,7 @@ header('Referrer-Policy: same-origin');
                 <a href="<?= e(rp_url('addData.php')) ?>"><?= e(__('home.nav.request')) ?></a>
                 <a href="<?= e(rp_url('planAdd.php')) ?>"><?= e(__('home.nav.plan')) ?></a>
                 <a href="<?= e(rp_url('feedback.php')) ?>"><?= e(__('home.nav.feedback')) ?></a>
+                <a href="<?= e(rp_url('itAdd.php')) ?>"><?= e(__('home.nav.it')) ?></a>
             </nav>
             <div class="home-tools">
                 <nav class="home-langs" aria-label="Language">
@@ -81,6 +82,13 @@ header('Referrer-Policy: same-origin');
                     <span class="home-card-copy">
                         <strong><?= e(__('home.card.feedback.title')) ?></strong>
                         <small><?= e(__('home.card.feedback.text')) ?></small>
+                    </span>
+                    <span class="home-card-go" aria-hidden="true">→</span>
+                </a>
+                <a class="home-card" href="<?= e(rp_url('itAdd.php')) ?>">
+                    <span class="home-card-copy">
+                        <strong><?= e(__('home.card.it.title')) ?></strong>
+                        <small><?= e(__('home.card.it.text')) ?></small>
                     </span>
                     <span class="home-card-go" aria-hidden="true">→</span>
                 </a>

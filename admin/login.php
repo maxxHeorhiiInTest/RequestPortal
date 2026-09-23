@@ -10,7 +10,7 @@ require dirname(__DIR__) . '/includes/auth.php';
 require dirname(__DIR__) . '/includes/layout.php';
 
 if (rp_admin_user() !== null) {
-    rp_redirect('admin/index.php');
+    rp_redirect(rp_admin_home());
 }
 
 $error    = '';
@@ -28,7 +28,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } elseif ($username === '' || $password === '') {
         $error = __('admin.login_failed');
     } elseif (rp_attempt_login($username, $password)) {
-        rp_redirect('admin/index.php');
+        rp_redirect(rp_admin_home());
     } else {
         $error = __('admin.login_failed');
     }

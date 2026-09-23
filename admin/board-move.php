@@ -18,6 +18,11 @@ if ($admin === null) {
     echo json_encode(['ok' => false, 'error' => 'auth']);
     exit;
 }
+if (!rp_admin_can('requests')) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'forbidden']);
+    exit;
+}
 
 $raw  = (string) file_get_contents('php://input');
 $data = json_decode($raw, true);

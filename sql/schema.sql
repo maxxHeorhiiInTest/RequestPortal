@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS rp_admin_users (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     username VARCHAR(80) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'full',
     created_at DATETIME NOT NULL,
     last_login_at DATETIME NULL,
     PRIMARY KEY (id),
@@ -163,4 +164,42 @@ CREATE TABLE IF NOT EXISTS rp_hidden_holidays (
     hidden_by VARCHAR(160) NOT NULL,
     hidden_at DATETIME NOT NULL,
     PRIMARY KEY (holiday_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rp_it_tickets (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_code VARCHAR(20) NOT NULL,
+    category ENUM('printer', 'cartridge', 'computer', 'network', 'other') NOT NULL,
+    description TEXT NOT NULL,
+    requester_name VARCHAR(160) NOT NULL,
+    requester_phone VARCHAR(80) NOT NULL,
+    building VARCHAR(80) NOT NULL,
+    room VARCHAR(80) NOT NULL,
+    status ENUM('new', 'in_progress', 'done') NOT NULL DEFAULT 'new',
+    admin_note TEXT NULL,
+    lang CHAR(2) NOT NULL DEFAULT 'uk',
+    ip_address VARCHAR(45) NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uniq_it_code (public_code),
+    KEY idx_status (status),
+    KEY idx_created_at (created_at),
+    KEY idx_ip_created (ip_address, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rp_it_ticket_history (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    ticket_id INT UNSIGNED NOT NULL,
+    action VARCHAR(40) NOT NULL,
+    old_value VARCHAR(255) NULL,
+    new_value VARCHAR(255) NULL,
+    note TEXT NULL,
+    actor VARCHAR(160) NOT NULL,
+    actor_ip VARCHAR(45) NULL,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_ticket_created (ticket_id, created_at),
+    CONSTRAINT fk_it_history FOREIGN KEY (ticket_id)
+        REFERENCES rp_it_tickets (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

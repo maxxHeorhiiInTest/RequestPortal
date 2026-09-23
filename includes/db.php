@@ -12,6 +12,8 @@ const RP_TABLE_FEEDBACK_FILES = 'rp_feedback_files';
 const RP_TABLE_FEEDBACK_HISTORY = 'rp_feedback_history';
 const RP_TABLE_VISITS = 'rp_page_visits';
 const RP_TABLE_HIDDEN_HOLIDAYS = 'rp_hidden_holidays';
+const RP_TABLE_IT = 'rp_it_tickets';
+const RP_TABLE_IT_HISTORY = 'rp_it_ticket_history';
 const RP_VISIT_DEDUP_MINUTES = 30;
 const RP_VISIT_RETENTION_DAYS = 90;
 
@@ -145,6 +147,7 @@ function rp_schema(): array
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 username VARCHAR(80) NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
+                role VARCHAR(20) NOT NULL DEFAULT \'full\',
                 created_at DATETIME NOT NULL,
                 last_login_at DATETIME NULL,
                 PRIMARY KEY (id),
@@ -249,6 +252,46 @@ function rp_schema(): array
                 hidden_at DATETIME NOT NULL,
                 PRIMARY KEY (holiday_key)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_IT => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_IT . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                public_code VARCHAR(20) NOT NULL,
+                category ENUM(\'printer\', \'cartridge\', \'computer\', \'network\', \'other\') NOT NULL,
+                description TEXT NOT NULL,
+                requester_name VARCHAR(160) NOT NULL,
+                requester_phone VARCHAR(80) NOT NULL,
+                building VARCHAR(80) NOT NULL,
+                room VARCHAR(80) NOT NULL,
+                status ENUM(\'new\', \'in_progress\', \'done\') NOT NULL DEFAULT \'new\',
+                admin_note TEXT NULL,
+                lang CHAR(2) NOT NULL DEFAULT \'uk\',
+                ip_address VARCHAR(45) NULL,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uniq_it_code (public_code),
+                KEY idx_status (status),
+                KEY idx_created_at (created_at),
+                KEY idx_ip_created (ip_address, created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_IT_HISTORY => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_IT_HISTORY . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                ticket_id INT UNSIGNED NOT NULL,
+                action VARCHAR(40) NOT NULL,
+                old_value VARCHAR(255) NULL,
+                new_value VARCHAR(255) NULL,
+                note TEXT NULL,
+                actor VARCHAR(160) NOT NULL,
+                actor_ip VARCHAR(45) NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_ticket_created (ticket_id, created_at),
+                CONSTRAINT fk_it_history FOREIGN KEY (ticket_id)
+                    REFERENCES ' . RP_TABLE_IT . ' (id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
     ];
 }
 
@@ -286,6 +329,9 @@ function rp_ensure_columns(PDO $pdo): void
             'department'       => "VARCHAR(255) NOT NULL DEFAULT ''",
             'requester_phone'   => "VARCHAR(80) NOT NULL DEFAULT ''",
             'requester_channel' => "VARCHAR(20) NOT NULL DEFAULT ''",
+        ],
+        RP_TABLE_ADMINS => [
+            'role' => "VARCHAR(20) NOT NULL DEFAULT 'full'",
         ],
     ];
 
@@ -454,6 +500,68 @@ function rp_recent_feedback_count(PDO $pdo, string $ip): int
     return (int) $stmt->fetchColumn();
 }
 
+function rp_log_it_history(
+    PDO $pdo,
+    int $ticketId,
+    string $action,
+    ?string $oldValue = null,
+    ?string $newValue = null,
+    ?string $note = null,
+    ?string $actor = null
+): void {
+    $stmt = $pdo->prepare(
+        'INSERT INTO ' . RP_TABLE_IT_HISTORY . '
+            (ticket_id, action, old_value, new_value, note, actor, actor_ip, created_at)
+         VALUES (:ticket_id, :action, :old_value, :new_value, :note, :actor, :actor_ip, NOW())'
+    );
+    $stmt->execute([
+        'ticket_id' => $ticketId,
+        'action'    => $action,
+        'old_value' => $oldValue,
+        'new_value' => $newValue,
+        'note'      => $note !== null && $note !== '' ? $note : null,
+        'actor'     => $actor ?? 'system',
+        'actor_ip'  => rp_client_ip(),
+    ]);
+}
+
+/** @return array<string,mixed>|null */
+function rp_find_it_ticket(PDO $pdo, int $id): ?array
+{
+    $stmt = $pdo->prepare('SELECT * FROM ' . RP_TABLE_IT . ' WHERE id = :id');
+    $stmt->execute(['id' => $id]);
+    $row = $stmt->fetch();
+
+    return $row ?: null;
+}
+
+/** @return list<array<string,mixed>> */
+function rp_it_history(PDO $pdo, int $ticketId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT * FROM ' . RP_TABLE_IT_HISTORY . '
+         WHERE ticket_id = :id ORDER BY created_at DESC, id DESC'
+    );
+    $stmt->execute(['id' => $ticketId]);
+
+    return $stmt->fetchAll();
+}
+
+function rp_recent_it_count(PDO $pdo, string $ip): int
+{
+    if ($ip === '') {
+        return 0;
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM ' . RP_TABLE_IT . '
+         WHERE ip_address = :ip AND created_at >= (NOW() - INTERVAL 1 HOUR)'
+    );
+    $stmt->execute(['ip' => $ip]);
+
+    return (int) $stmt->fetchColumn();
+}
+
 /** True when the schema has been installed. */
 function rp_tables_exist(PDO $pdo): bool
 {
@@ -469,7 +577,7 @@ function rp_tables_exist(PDO $pdo): bool
 /** @return list<string> */
 function rp_public_visit_scripts(): array
 {
-    return ['index.php', 'addData.php', 'planAdd.php', 'feedback.php'];
+    return ['index.php', 'addData.php', 'planAdd.php', 'feedback.php', 'itAdd.php'];
 }
 
 function rp_visit_page_label(string $path): string
@@ -479,6 +587,7 @@ function rp_visit_page_label(string $path): string
         'addData.php'  => __('admin.stats.page.request'),
         'planAdd.php'  => __('admin.stats.page.plan'),
         'feedback.php' => __('admin.stats.page.feedback'),
+        'itAdd.php'    => __('admin.stats.page.it'),
     ];
 
     return $labels[$path] ?? $path;

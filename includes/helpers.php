@@ -408,6 +408,23 @@ function rp_statuses(): array
 }
 
 /** @return list<string> */
+function rp_it_statuses(): array
+{
+    return ['new', 'in_progress', 'done'];
+}
+
+/** @return list<string> */
+function rp_it_categories(): array
+{
+    return ['printer', 'cartridge', 'computer', 'network', 'other'];
+}
+
+function rp_it_category_label(string $category): string
+{
+    return __('it.category.' . $category);
+}
+
+/** @return list<string> */
 function rp_request_types(): array
 {
     return ['new', 'update'];

@@ -27,9 +27,9 @@ function rp_header(string $title, string $context = 'public'): void
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title><?= e($title . ' — ' . $appName) ?></title>
-    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=19">
+    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=20">
 </head>
-<body class="<?= e($context) ?><?= in_array($script, ['board.php', 'plan.php', 'feedback-board.php'], true) ? ' board-page' : '' ?>">
+<body class="<?= e($context) ?><?= in_array($script, ['board.php', 'plan.php', 'feedback-board.php', 'it-board.php'], true) ? ' board-page' : '' ?>">
 <header class="topbar">
     <div class="wrap topbar-inner">
         <div class="brand">
@@ -39,14 +39,15 @@ function rp_header(string $title, string $context = 'public'): void
         <nav class="topnav">
             <?php if ($context === 'admin'): ?>
                 <?php if ($admin !== null): ?>
-                    <a href="<?= e(rp_url('admin/logout.php')) ?>"><?= e(__('nav.logout')) ?> (<?= e((string) $admin['username']) ?>)</a>
+                    <a href="<?= e(rp_url('admin/logout.php')) ?>"><?= e(__('nav.logout')) ?> (<?= e((string) $admin['username']) ?> · <?= e(__('admin.role.' . (string) ($admin['role'] ?? 'full'))) ?>)</a>
                 <?php endif; ?>
             <?php else: ?>
                 <a href="<?= e(rp_url('index.php')) ?>"><?= e(__('nav.home')) ?></a>
                 <a href="<?= e(rp_url('addData.php')) ?>"><?= e(__('nav.new_request')) ?></a>
                 <a href="<?= e(rp_url('planAdd.php')) ?>"><?= e(__('nav.plan_add')) ?></a>
                 <a href="<?= e(rp_url('feedback.php')) ?>"><?= e(__('nav.feedback')) ?></a>
-                <a href="<?= e(rp_url('admin/index.php')) ?>"><?= e(__('nav.admin')) ?></a>
+                <a href="<?= e(rp_url('itAdd.php')) ?>"><?= e(__('nav.it')) ?></a>
+                <a href="<?= e(rp_url('admin/login.php')) ?>"><?= e(__('nav.admin')) ?></a>
             <?php endif; ?>
             <?php if ($siteUrl !== ''): ?>
                 <a href="<?= e($siteUrl) ?>" target="_blank" rel="noopener"><?= e(__('nav.site')) ?></a>
@@ -69,6 +70,8 @@ function rp_header(string $title, string $context = 'public'): void
                href="<?= e(rp_url('planAdd.php')) ?>"><?= e(__('nav.plan_add')) ?></a>
             <a class="admin-tab<?= $script === 'feedback.php' ? ' active' : '' ?>"
                href="<?= e(rp_url('feedback.php')) ?>"><?= e(__('public.tab.feedback')) ?></a>
+            <a class="admin-tab<?= $script === 'itAdd.php' ? ' active' : '' ?>"
+               href="<?= e(rp_url('itAdd.php')) ?>"><?= e(__('public.tab.it')) ?></a>
         </nav>
     <?php endif; ?>
     <?php if ($context === 'admin' && $admin !== null): ?>
@@ -76,21 +79,34 @@ function rp_header(string $title, string $context = 'public'): void
         $isRequests = in_array($script, ['index.php', 'view.php', 'board.php'], true);
         $isPlan     = in_array($script, ['plan.php', 'plan-edit.php', 'plan-inbox.php'], true);
         $isFeedback = in_array($script, ['feedback.php', 'feedback-view.php', 'feedback-board.php'], true);
+        $isIt       = in_array($script, ['it.php', 'it-view.php', 'it-board.php'], true);
         $isStats    = $script === 'stats.php';
         require_once __DIR__ . '/content.php';
-        $planInbox  = rp_content_public_draft_count(rp_db());
+        $planInbox  = rp_admin_can('plan') ? rp_content_public_draft_count(rp_db()) : 0;
         ?>
         <nav class="admin-tabs" aria-label="<?= e(__('nav.admin')) ?>">
+            <?php if (rp_admin_can('requests')): ?>
             <a class="admin-tab<?= $isRequests ? ' active' : '' ?>"
                href="<?= e(rp_url('admin/index.php')) ?>"><?= e(__('admin.section.requests')) ?></a>
+            <?php endif; ?>
+            <?php if (rp_admin_can('plan')): ?>
             <a class="admin-tab<?= $isPlan ? ' active' : '' ?>"
                href="<?= e(rp_url('admin/plan.php')) ?>"><?= e(__('admin.section.plan')) ?><?php if ($planInbox > 0): ?>
                 <span class="tab-count"><?= (int) $planInbox ?></span>
             <?php endif; ?></a>
+            <?php endif; ?>
+            <?php if (rp_admin_can('feedback')): ?>
             <a class="admin-tab<?= $isFeedback ? ' active' : '' ?>"
                href="<?= e(rp_url('admin/feedback.php')) ?>"><?= e(__('admin.section.feedback')) ?></a>
+            <?php endif; ?>
+            <?php if (rp_admin_can('it')): ?>
+            <a class="admin-tab<?= $isIt ? ' active' : '' ?>"
+               href="<?= e(rp_url('admin/it-board.php')) ?>"><?= e(__('admin.section.it')) ?></a>
+            <?php endif; ?>
+            <?php if (rp_admin_can('stats')): ?>
             <a class="admin-tab<?= $isStats ? ' active' : '' ?>"
                href="<?= e(rp_url('admin/stats.php')) ?>"><?= e(__('admin.section.stats')) ?></a>
+            <?php endif; ?>
         </nav>
         <?php if ($isRequests): ?>
             <nav class="admin-subtabs">
@@ -116,6 +132,13 @@ function rp_header(string $title, string $context = 'public'): void
                    href="<?= e(rp_url('admin/feedback.php')) ?>"><?= e(__('admin.list_title')) ?></a>
                 <a class="admin-tab<?= $script === 'feedback-board.php' ? ' active' : '' ?>"
                    href="<?= e(rp_url('admin/feedback-board.php')) ?>"><?= e(__('admin.board_title')) ?></a>
+            </nav>
+        <?php elseif ($isIt): ?>
+            <nav class="admin-subtabs">
+                <a class="admin-tab<?= in_array($script, ['it.php', 'it-view.php'], true) ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/it.php')) ?>"><?= e(__('admin.list_title')) ?></a>
+                <a class="admin-tab<?= $script === 'it-board.php' ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/it-board.php')) ?>"><?= e(__('admin.board_title')) ?></a>
             </nav>
         <?php endif; ?>
     <?php endif; ?>
@@ -216,6 +239,7 @@ function rp_footer(): void
         'request'  => __('admin.inbox.request'),
         'feedback' => __('admin.inbox.feedback'),
         'plan'     => __('admin.inbox.plan'),
+        'it'       => __('admin.inbox.it'),
     ],
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?></script>
 <script>
