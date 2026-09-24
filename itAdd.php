@@ -103,6 +103,17 @@ if ($isPost) {
 
             $pdo->commit();
             unset($_SESSION['rp_csrf']);
+
+            rp_telegram_notify('it', [
+                'Номер'            => $code,
+                __('it.category')  => rp_it_category_label($values['category']),
+                __('it.name')      => $values['name'],
+                __('it.phone')     => $values['phone'],
+                __('it.building')  => $values['building'],
+                __('it.room')      => $values['room'],
+                __('it.message')   => $values['message'],
+            ]);
+
             rp_redirect('itAdd.php?sent=' . urlencode($code));
         } catch (Throwable $exception) {
             if ($pdo->inTransaction()) {

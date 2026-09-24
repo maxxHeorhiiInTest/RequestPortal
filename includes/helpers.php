@@ -553,3 +553,141 @@ function rp_abort(int $code, string $message = ''): never
     header('Content-Type: text/plain; charset=utf-8');
     exit($message !== '' ? $message : (string) $code);
 }
+
+/** Escape user text for Telegram legacy Markdown. */
+function rp_telegram_md(string $text): string
+{
+    return str_replace(
+        ['\\', '_', '*', '`', '['],
+        ['\\\\', '\\_', '\\*', '\\`', '\\['],
+        $text
+    );
+}
+
+/**
+ * Notify Telegram about a public submission. Failures are logged and never
+ * block the form.
+ *
+ * @param 'plan'|'request'|'feedback'|'it' $kind
+ * @param array<string,string>             $fields  label => value
+ */
+function rp_telegram_notify(string $kind, array $fields): void
+{
+    if (!rp_config('telegram.enabled', true)) {
+        return;
+    }
+
+    $token = trim((string) rp_config('telegram.bot_token', ''));
+    $chat  = trim((string) rp_config('telegram.chat_id', ''));
+    if ($token === '' || $chat === '') {
+        return;
+    }
+
+    $titles = [
+        'plan'     => 'Новий анонс (SMM)',
+        'request'  => 'Нова заявка на сайт',
+        'feedback' => 'Нове питання / пропозиція',
+        'it'       => 'Нова заявка до IT-відділу',
+    ];
+
+    $lines = ['📌 *' . ($titles[$kind] ?? rp_telegram_md($kind)) . '*'];
+    foreach ($fields as $label => $value) {
+        $value = trim(preg_replace('/\s+/u', ' ', (string) $value) ?? (string) $value);
+        if ($value === '') {
+            continue;
+        }
+        $lines[] = '*' . rp_telegram_md($label) . ':* ' . rp_telegram_md($value);
+    }
+
+    $text = implode("\n", $lines);
+    if ($text === '') {
+        return;
+    }
+    if (mb_strlen($text) > 4000) {
+        $text = mb_substr($text, 0, 3990) . '…';
+    }
+
+    $thread = rp_telegram_thread($kind);
+
+    $ok = rp_telegram_send($token, $chat, $thread, $text);
+    if (!$ok) {
+        error_log('[request-portal] Telegram notify failed for ' . $kind);
+    }
+}
+
+/** Telegram forum topic for a public form kind. */
+function rp_telegram_thread(string $kind): int
+{
+    return match ($kind) {
+        'plan'     => (int) rp_config('telegram.thread_plan', 6),
+        'it'       => (int) rp_config('telegram.thread_it', 7),
+        'feedback' => (int) rp_config('telegram.thread_feedback', 95),
+        default    => (int) rp_config('telegram.thread_request', 96),
+    };
+}
+
+function rp_telegram_send(string $token, string $chat, int $threadId, string $text): bool
+{
+    $url    = 'https://api.telegram.org/bot' . $token . '/sendMessage';
+    $fields = [
+        'chat_id'           => $chat,
+        'message_thread_id' => (string) $threadId,
+        'parse_mode'        => 'Markdown',
+        'text'              => $text,
+    ];
+
+    $raw = rp_http_post_form($url, $fields);
+    $decoded = json_decode($raw, true);
+    if (is_array($decoded) && !empty($decoded['ok'])) {
+        return true;
+    }
+
+    $description = is_array($decoded) ? (string) ($decoded['description'] ?? '') : '';
+    $markdownRejected = is_array($decoded)
+        && (int) ($decoded['error_code'] ?? 0) === 400
+        && (str_contains($description, 'parse') || str_contains($description, 'markdown'));
+
+    if (!$markdownRejected) {
+        return false;
+    }
+
+    unset($fields['parse_mode']);
+    $raw = rp_http_post_form($url, $fields);
+    $decoded = json_decode($raw, true);
+
+    return is_array($decoded) && !empty($decoded['ok']);
+}
+
+/** @param array<string,string> $fields */
+function rp_http_post_form(string $url, array $fields): string
+{
+    if (function_exists('curl_init')) {
+        $curl = curl_init($url);
+        if ($curl === false) {
+            return '';
+        }
+        curl_setopt_array($curl, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $fields,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_TIMEOUT        => 8,
+        ]);
+        $out = curl_exec($curl);
+        curl_close($curl);
+
+        return is_string($out) ? $out : '';
+    }
+
+    $context = stream_context_create([
+        'http' => [
+            'method'  => 'POST',
+            'header'  => "Content-Type: application/x-www-form-urlencoded\r\n",
+            'content' => http_build_query($fields),
+            'timeout' => 8,
+        ],
+    ]);
+    $out = @file_get_contents($url, false, $context);
+
+    return is_string($out) ? $out : '';
+}

@@ -121,6 +121,19 @@ if ($postOverflowed) {
 
             $pdo->commit();
             unset($_SESSION['rp_csrf']);
+
+            rp_telegram_notify('feedback', [
+                'Номер'                      => $code,
+                __('feedback.message')       => $values['message'],
+                __('form.faculty')           => $values['faculty'],
+                __('form.department')        => $values['department'],
+                __('form.name')              => $values['name'],
+                __('form.phone')             => $values['phone'],
+                __('form.channel')           => rp_channel_label($values['channel']),
+                __('form.channel_contact')   => $values['contact'],
+                __('form.files')             => $stored !== [] ? (string) count($stored) : '',
+            ]);
+
             rp_redirect('feedback.php?sent=' . urlencode($code));
         } catch (Throwable $exception) {
             if ($pdo->inTransaction()) {

@@ -92,6 +92,23 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             ]);
 
             unset($_SESSION['rp_csrf']);
+
+            $channelNames = [];
+            foreach ($values['channels'] as $channel) {
+                $channelNames[] = rp_content_channel_label((string) $channel);
+            }
+
+            rp_telegram_notify('plan', [
+                __('content.field.title')       => $values['title'],
+                __('content.field.when')        => $eventUtc !== null ? rp_format_datetime($eventUtc) : $values['event_at'],
+                __('content.field.department')  => $values['department'],
+                __('content.field.responsible') => $values['responsible'],
+                __('content.field.description') => $values['description'],
+                __('content.field.extra')       => $values['extra_info'],
+                __('content.field.channels')    => implode(', ', $channelNames),
+                __('content.field.status')      => rp_content_status_label('draft'),
+            ]);
+
             rp_redirect('planAdd.php?sent=1');
         } catch (Throwable $exception) {
             error_log('[request-portal] public content save failed: ' . $exception->getMessage());

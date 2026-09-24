@@ -78,4 +78,14 @@ return [
         'rate_limit_per_hour' => 5,
         'session_name'        => 'rp_session',
     ],
+
+    'telegram' => [
+        'enabled'      => true,
+        'bot_token'    => '',
+        'chat_id'      => '',
+        'thread_plan'     => 6,
+        'thread_it'       => 7,
+        'thread_feedback' => 95,
+        'thread_request'  => 96,
+    ],
 ];

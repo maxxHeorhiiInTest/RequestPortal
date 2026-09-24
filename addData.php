@@ -133,6 +133,19 @@ if ($postOverflowed) {
             $pdo->commit();
             unset($_SESSION['rp_csrf']);
 
+            rp_telegram_notify('request', [
+                'Номер'                         => $code,
+                __('form.type')                 => rp_type_label($values['type']),
+                __('form.target')               => $values['target'],
+                __('form.description')          => $values['description'],
+                __('form.comment')              => $values['comment'],
+                __('form.faculty')              => $values['faculty'],
+                __('form.department')           => $values['department'],
+                __('form.name')                 => $values['name'],
+                __('form.contact')              => $values['contact'],
+                __('form.files')                => $stored !== [] ? (string) count($stored) : '',
+            ]);
+
             rp_redirect('addData.php?sent=' . urlencode($code));
         } catch (Throwable $exception) {
             if ($pdo->inTransaction()) {
