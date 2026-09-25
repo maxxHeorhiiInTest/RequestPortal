@@ -21,7 +21,13 @@ if ($request === null) {
     rp_redirect('admin/index.php');
 }
 
+$deleted = rp_admin_guard_deleted($request, 'admin/index.php');
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    if ($deleted) {
+        rp_flash('error', __('admin.trash.cannot_edit'));
+        rp_redirect('admin/view.php?id=' . $id);
+    }
     if (!rp_csrf_valid($_POST['csrf_token'] ?? null)) {
         rp_flash('error', __('error.csrf'));
         rp_redirect('admin/view.php?id=' . $id);
@@ -87,6 +93,8 @@ $historyLabel = static function (array $entry): string {
         ),
         'note_updated'   => __('history.note_updated'),
         'file_added'     => __('history.file_added', (string) $entry['new_value']),
+        'deleted'        => __('history.deleted'),
+        'restored'       => __('history.restored'),
         default          => (string) $entry['action'],
     };
 };
@@ -103,6 +111,9 @@ rp_header(__('admin.view_title', (string) $request['public_code']), 'admin');
         <span class="badge status-<?= e((string) $request['status']) ?>">
             <?= e(rp_status_label((string) $request['status'])) ?>
         </span>
+        <?php if ($deleted): ?>
+            <span class="badge status-rejected"><?= e(__('admin.trash.badge')) ?></span>
+        <?php endif; ?>
     </h1>
 
     <h2><?= e(__('admin.section.details')) ?></h2>
@@ -168,6 +179,9 @@ rp_header(__('admin.view_title', (string) $request['public_code']), 'admin');
     <?php endif; ?>
 </div>
 
+<?php rp_admin_trash_box('request', $id, $deleted); ?>
+
+<?php if (!$deleted): ?>
 <div class="card">
     <h2><?= e(__('admin.section.manage')) ?></h2>
     <form method="post" action="<?= e(rp_url('admin/view.php?id=' . $id)) ?>">
@@ -197,6 +211,7 @@ rp_header(__('admin.view_title', (string) $request['public_code']), 'admin');
         <button type="submit" class="btn btn-primary"><?= e(__('common.save')) ?></button>
     </form>
 </div>
+<?php endif; ?>
 
 <div class="card">
     <h2><?= e(__('admin.section.history')) ?></h2>

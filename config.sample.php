@@ -80,12 +80,16 @@ return [
     ],
 
     'telegram' => [
-        'enabled'      => true,
-        'bot_token'    => '',
-        'chat_id'      => '',
+        'enabled'         => true,
+        'bot_token'       => '',
+        'chat_id'         => '',
         'thread_plan'     => 6,
-        'thread_it'       => 7,
         'thread_feedback' => 95,
         'thread_request'  => 96,
+        // UA: Окремий бот і супергрупа для заявок IT-відділу.
+        // EN: Separate bot and supergroup for IT-department tickets.
+        'it_bot_token'    => '',
+        'it_chat_id'      => '',
+        'thread_it'       => 3,
     ],
 ];

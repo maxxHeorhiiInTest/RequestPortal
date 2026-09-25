@@ -41,7 +41,7 @@ if (!rp_csrf_valid($token) || $id <= 0 || !in_array($status, rp_statuses(), true
 
 $pdo      = rp_db();
 $feedback = rp_find_feedback($pdo, $id);
-if ($feedback === null) {
+if ($feedback === null || rp_item_is_deleted($feedback)) {
     http_response_code(404);
     echo json_encode(['ok' => false, 'error' => 'not_found']);
     exit;

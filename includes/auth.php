@@ -70,6 +70,25 @@ function rp_admin_can(string $section): bool
     return $admin['role'] === 'it' && $section === 'it';
 }
 
+function rp_admin_is_full(?array $admin = null): bool
+{
+    $admin ??= rp_admin_user();
+
+    return $admin !== null && ($admin['role'] ?? '') === 'full';
+}
+
+/** @return array{id:int,username:string,role:string} */
+function rp_require_full_admin(): array
+{
+    $admin = rp_require_admin();
+    if (!rp_admin_is_full($admin)) {
+        rp_flash('error', __('admin.trash.forbidden'));
+        rp_redirect(rp_admin_home());
+    }
+
+    return $admin;
+}
+
 function rp_admin_home(): string
 {
     return rp_admin_can('requests') ? 'admin/index.php' : 'admin/it-board.php';
@@ -79,6 +98,9 @@ function rp_admin_script_section(string $script): ?string
 {
     if (in_array($script, ['login.php', 'logout.php', 'inbox-poll.php'], true)) {
         return null;
+    }
+    if (in_array($script, ['trash.php', 'soft-delete.php', 'soft-restore.php'], true)) {
+        return 'full';
     }
     if (in_array($script, ['it.php', 'it-view.php', 'it-board.php', 'it-move.php'], true)) {
         return 'it';

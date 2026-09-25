@@ -27,7 +27,7 @@ function rp_header(string $title, string $context = 'public'): void
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title><?= e($title . ' — ' . $appName) ?></title>
-    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=20">
+    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=21">
 </head>
 <body class="<?= e($context) ?><?= in_array($script, ['board.php', 'plan.php', 'feedback-board.php', 'it-board.php'], true) ? ' board-page' : '' ?>">
 <header class="topbar">
@@ -81,6 +81,7 @@ function rp_header(string $title, string $context = 'public'): void
         $isFeedback = in_array($script, ['feedback.php', 'feedback-view.php', 'feedback-board.php'], true);
         $isIt       = in_array($script, ['it.php', 'it-view.php', 'it-board.php'], true);
         $isStats    = $script === 'stats.php';
+        $isTrash    = $script === 'trash.php';
         require_once __DIR__ . '/content.php';
         $planInbox  = rp_admin_can('plan') ? rp_content_public_draft_count(rp_db()) : 0;
         ?>
@@ -106,6 +107,10 @@ function rp_header(string $title, string $context = 'public'): void
             <?php if (rp_admin_can('stats')): ?>
             <a class="admin-tab<?= $isStats ? ' active' : '' ?>"
                href="<?= e(rp_url('admin/stats.php')) ?>"><?= e(__('admin.section.stats')) ?></a>
+            <?php endif; ?>
+            <?php if (rp_admin_is_full()): ?>
+            <a class="admin-tab<?= $isTrash ? ' active' : '' ?>"
+               href="<?= e(rp_url('admin/trash.php')) ?>"><?= e(__('admin.section.trash')) ?></a>
             <?php endif; ?>
         </nav>
         <?php if ($isRequests): ?>

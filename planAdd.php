@@ -6,7 +6,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/includes/bootstrap.php';
-require __DIR__ . '/includes/content.php';
+require_once __DIR__ . '/includes/content.php';
 require __DIR__ . '/includes/layout.php';
 
 $pdo    = rp_db();

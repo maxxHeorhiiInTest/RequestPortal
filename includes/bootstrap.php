@@ -60,6 +60,7 @@ if (rp_config('app.debug', false)) {
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/i18n.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/trash.php';
 
 if (PHP_SAPI !== 'cli' && session_status() !== PHP_SESSION_ACTIVE) {
     session_name((string) rp_config('security.session_name', 'rp_session'));

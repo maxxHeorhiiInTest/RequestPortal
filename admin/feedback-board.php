@@ -15,6 +15,7 @@ $pdo  = rp_db();
 $stmt = $pdo->query(
     'SELECT f.*, (SELECT COUNT(*) FROM ' . RP_TABLE_FEEDBACK_FILES . ' x WHERE x.feedback_id = f.id) AS file_count
      FROM ' . RP_TABLE_FEEDBACK . ' f
+     WHERE ' . rp_sql_alive('f') . '
      ORDER BY f.created_at DESC, f.id DESC'
 );
 $items = $stmt->fetchAll();

@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/includes/bootstrap.php';
 require dirname(__DIR__) . '/includes/auth.php';
-require dirname(__DIR__) . '/includes/content.php';
+require_once dirname(__DIR__) . '/includes/content.php';
 require dirname(__DIR__) . '/includes/layout.php';
 
 $admin = rp_require_admin();
@@ -20,6 +20,8 @@ if ($id > 0 && $existing === null) {
     rp_flash('error', __('content.not_found'));
     rp_redirect('admin/plan.php');
 }
+
+$deleted = $existing ? rp_admin_guard_deleted($existing, 'admin/plan.php') : false;
 
 $values = [
     'title'        => $existing ? (string) $existing['title'] : '',
@@ -35,6 +37,10 @@ $values = [
 $errors = [];
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    if ($deleted) {
+        rp_flash('error', __('admin.trash.cannot_edit'));
+        rp_redirect('admin/plan-edit.php?id=' . $id);
+    }
     if (!rp_csrf_valid($_POST['csrf_token'] ?? null)) {
         $errors[] = __('error.csrf');
     }
@@ -137,7 +143,12 @@ $lockMin   = !$existing || !rp_utc_is_past((string) $existing['event_at']);
 rp_header($pageTitle, 'admin');
 ?>
 <div class="card">
-    <h1><?= e($pageTitle) ?></h1>
+    <h1>
+        <?= e($pageTitle) ?>
+        <?php if ($deleted): ?>
+            <span class="badge status-rejected"><?= e(__('admin.trash.badge')) ?></span>
+        <?php endif; ?>
+    </h1>
     <?php if ($existing && rp_content_is_public($existing['created_by'] ?? null)): ?>
         <p class="alert"><?= e(__('content.source.site_long')) ?>
             <?= e(__('content.inbox.submitted')) ?>:
@@ -223,16 +234,13 @@ rp_header($pageTitle, 'admin');
         </fieldset>
 
         <p class="muted"><?= e(__('common.required_hint')) ?></p>
+        <?php if (!$deleted): ?>
         <button type="submit" class="btn btn-primary"><?= e(__('common.save')) ?></button>
+        <?php endif; ?>
         <a class="btn" href="<?= e(rp_url('admin/plan.php')) ?>"><?= e(__('common.back')) ?></a>
     </form>
-    <?php if ($existing): ?>
-        <form method="post" action="<?= e(rp_url('admin/plan-delete.php')) ?>" class="delete-block"
-              onsubmit='return confirm(<?= json_encode(__('content.delete_confirm'), JSON_UNESCAPED_UNICODE) ?>);'>
-            <?= rp_csrf_field() ?>
-            <input type="hidden" name="id" value="<?= (int) $id ?>">
-            <button type="submit" class="btn btn-danger"><?= e(__('content.delete')) ?></button>
-        </form>
-    <?php endif; ?>
 </div>
+<?php if ($existing): ?>
+    <?php rp_admin_trash_box('plan', $id, $deleted); ?>
+<?php endif; ?>
 <?php rp_footer();

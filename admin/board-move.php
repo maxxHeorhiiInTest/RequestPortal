@@ -42,7 +42,7 @@ if (!rp_csrf_valid($token) || $id <= 0 || !in_array($status, rp_statuses(), true
 
 $pdo     = rp_db();
 $request = rp_find_request($pdo, $id);
-if ($request === null) {
+if ($request === null || rp_item_is_deleted($request)) {
     http_response_code(404);
     echo json_encode(['ok' => false, 'error' => 'not_found']);
     exit;

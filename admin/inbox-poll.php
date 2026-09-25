@@ -42,7 +42,7 @@ if ($fullInbox) {
     $stmt = $pdo->prepare(
         'SELECT id, public_code, description, requester_name, created_at
          FROM ' . RP_TABLE_REQUESTS . '
-         WHERE created_at >= :since
+         WHERE created_at >= :since AND ' . rp_sql_alive() . '
          ORDER BY created_at ASC, id ASC
          LIMIT 20'
     );
@@ -62,7 +62,7 @@ if ($fullInbox) {
     $stmt = $pdo->prepare(
         'SELECT id, public_code, message, requester_name, created_at
          FROM ' . RP_TABLE_FEEDBACK . '
-         WHERE created_at >= :since
+         WHERE created_at >= :since AND ' . rp_sql_alive() . '
          ORDER BY created_at ASC, id ASC
          LIMIT 20'
     );
@@ -82,9 +82,9 @@ if ($fullInbox) {
     $stmt = $pdo->prepare(
         'SELECT id, title, department, created_at
          FROM ' . RP_TABLE_CONTENT . "
-         WHERE created_by LIKE 'guest:%' AND created_at >= :since
+         WHERE created_by LIKE 'guest:%' AND created_at >= :since AND " . rp_sql_alive() . '
          ORDER BY created_at ASC, id ASC
-         LIMIT 20"
+         LIMIT 20'
     );
     $stmt->execute(['since' => $since]);
     foreach ($stmt->fetchAll() as $row) {
@@ -104,7 +104,7 @@ if (rp_admin_can('it')) {
     $stmt = $pdo->prepare(
         'SELECT id, public_code, description, requester_name, created_at
          FROM ' . RP_TABLE_IT . '
-         WHERE created_at >= :since
+         WHERE created_at >= :since AND ' . rp_sql_alive() . '
          ORDER BY created_at ASC, id ASC
          LIMIT 20'
     );

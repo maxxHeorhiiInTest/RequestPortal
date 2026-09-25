@@ -21,11 +21,17 @@ if ($feedback === null) {
     rp_redirect('admin/feedback.php');
 }
 
+$deleted = rp_admin_guard_deleted($feedback, 'admin/feedback.php');
+
 $targets    = rp_feedback_reply_targets($feedback);
 $replyDraft = (string) ($_SESSION['rp_reply_draft'][$id] ?? '');
 unset($_SESSION['rp_reply_draft'][$id]);
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    if ($deleted) {
+        rp_flash('error', __('admin.trash.cannot_edit'));
+        rp_redirect('admin/feedback-view.php?id=' . $id);
+    }
     if (!rp_csrf_valid($_POST['csrf_token'] ?? null)) {
         rp_flash('error', __('error.csrf'));
         rp_redirect('admin/feedback-view.php?id=' . $id);
@@ -168,6 +174,8 @@ $historyLabel = static function (array $entry): string {
         ),
         'note_updated'   => __('history.note_updated'),
         'file_added'     => __('history.file_added', (string) $entry['new_value']),
+        'deleted'        => __('history.deleted'),
+        'restored'       => __('history.restored'),
         default          => $action,
     };
 };
@@ -190,6 +198,9 @@ rp_header(__('admin.feedback.view_title', (string) $feedback['public_code']), 'a
         <span class="badge status-<?= e((string) $feedback['status']) ?>">
             <?= e(rp_status_label((string) $feedback['status'])) ?>
         </span>
+        <?php if ($deleted): ?>
+            <span class="badge status-rejected"><?= e(__('admin.trash.badge')) ?></span>
+        <?php endif; ?>
     </h1>
     <dl class="details">
         <dt><?= e(__('feedback.message')) ?></dt>
@@ -213,6 +224,9 @@ rp_header(__('admin.feedback.view_title', (string) $feedback['public_code']), 'a
     </dl>
 </div>
 
+<?php rp_admin_trash_box('feedback', $id, $deleted); ?>
+
+<?php if (!$deleted): ?>
 <div class="card">
     <h2><?= e(__('admin.reply.title')) ?></h2>
     <p class="muted"><?= e(__('admin.reply.intro')) ?></p>
@@ -322,6 +336,7 @@ rp_header(__('admin.feedback.view_title', (string) $feedback['public_code']), 'a
     })();
     </script>
 </div>
+<?php endif; ?>
 
 <div class="card">
     <h2><?= e(__('admin.section.files')) ?></h2>
@@ -350,6 +365,7 @@ rp_header(__('admin.feedback.view_title', (string) $feedback['public_code']), 'a
     <?php endif; ?>
 </div>
 
+<?php if (!$deleted): ?>
 <div class="card">
     <h2><?= e(__('admin.section.manage')) ?></h2>
     <form method="post" action="<?= e(rp_url('admin/feedback-view.php?id=' . $id)) ?>">
@@ -380,6 +396,7 @@ rp_header(__('admin.feedback.view_title', (string) $feedback['public_code']), 'a
         <button type="submit" class="btn btn-primary"><?= e(__('common.save')) ?></button>
     </form>
 </div>
+<?php endif; ?>
 
 <div class="card">
     <h2><?= e(__('admin.section.history')) ?></h2>

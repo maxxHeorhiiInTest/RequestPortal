@@ -27,7 +27,7 @@ $filters = [
     'date_to'   => $validDate($_GET['date_to'] ?? ''),
 ];
 
-$where  = [];
+$where  = [rp_sql_alive('f')];
 $params = [];
 
 if ($filters['status'] !== '') {

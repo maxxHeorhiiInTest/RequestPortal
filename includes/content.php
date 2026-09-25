@@ -104,12 +104,9 @@ function rp_find_content(PDO $pdo, int $id): ?array
     return $row ?: null;
 }
 
-function rp_delete_content(PDO $pdo, int $id): bool
+function rp_delete_content(PDO $pdo, int $id, string $actor = 'admin'): bool
 {
-    $stmt = $pdo->prepare('DELETE FROM ' . RP_TABLE_CONTENT . ' WHERE id = :id');
-    $stmt->execute(['id' => $id]);
-
-    return $stmt->rowCount() > 0;
+    return rp_soft_delete($pdo, 'plan', $id, $actor);
 }
 
 /**
@@ -121,7 +118,7 @@ function rp_content_between(PDO $pdo, string $fromUtc, string $toUtc): array
 {
     $stmt = $pdo->prepare(
         'SELECT * FROM ' . RP_TABLE_CONTENT . '
-         WHERE event_at >= :from_at AND event_at < :to_at
+         WHERE event_at >= :from_at AND event_at < :to_at AND ' . rp_sql_alive() . '
          ORDER BY event_at ASC, id ASC'
     );
     $stmt->execute(['from_at' => $fromUtc, 'to_at' => $toUtc]);
@@ -154,7 +151,7 @@ function rp_content_public_draft_count(PDO $pdo): int
 {
     return (int) $pdo->query(
         'SELECT COUNT(*) FROM ' . RP_TABLE_CONTENT . "
-         WHERE created_by LIKE 'guest:%' AND status = 'draft'"
+         WHERE created_by LIKE 'guest:%' AND status = 'draft' AND " . rp_sql_alive()
     )->fetchColumn();
 }
 
@@ -168,7 +165,7 @@ function rp_content_public_list(PDO $pdo, int $limit = 200): array
     $limit = max(1, min(500, $limit));
     $stmt  = $pdo->query(
         'SELECT * FROM ' . RP_TABLE_CONTENT . "
-         WHERE created_by LIKE 'guest:%'
+         WHERE created_by LIKE 'guest:%' AND " . rp_sql_alive() . "
          ORDER BY (status = 'draft') DESC, created_at DESC, id DESC
          LIMIT " . $limit
     );

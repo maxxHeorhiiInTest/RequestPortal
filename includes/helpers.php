@@ -577,9 +577,8 @@ function rp_telegram_notify(string $kind, array $fields): void
         return;
     }
 
-    $token = trim((string) rp_config('telegram.bot_token', ''));
-    $chat  = trim((string) rp_config('telegram.chat_id', ''));
-    if ($token === '' || $chat === '') {
+    $dest = rp_telegram_destination($kind);
+    if ($dest['token'] === '' || $dest['chat'] === '') {
         return;
     }
 
@@ -607,20 +606,40 @@ function rp_telegram_notify(string $kind, array $fields): void
         $text = mb_substr($text, 0, 3990) . '…';
     }
 
-    $thread = rp_telegram_thread($kind);
-
-    $ok = rp_telegram_send($token, $chat, $thread, $text);
+    $ok = rp_telegram_send($dest['token'], $dest['chat'], $dest['thread'], $text);
     if (!$ok) {
         error_log('[request-portal] Telegram notify failed for ' . $kind);
     }
 }
 
-/** Telegram forum topic for a public form kind. */
+/**
+ * Bot, chat and forum topic for a public form kind.
+ * IT tickets use a separate bot and group.
+ *
+ * @return array{token: string, chat: string, thread: int}
+ */
+function rp_telegram_destination(string $kind): array
+{
+    if ($kind === 'it') {
+        return [
+            'token'  => trim((string) rp_config('telegram.it_bot_token', '')),
+            'chat'   => trim((string) rp_config('telegram.it_chat_id', '')),
+            'thread' => (int) rp_config('telegram.thread_it', 3),
+        ];
+    }
+
+    return [
+        'token'  => trim((string) rp_config('telegram.bot_token', '')),
+        'chat'   => trim((string) rp_config('telegram.chat_id', '')),
+        'thread' => rp_telegram_thread($kind),
+    ];
+}
+
+/** Telegram forum topic for SMM / site / feedback alerts. */
 function rp_telegram_thread(string $kind): int
 {
     return match ($kind) {
         'plan'     => (int) rp_config('telegram.thread_plan', 6),
-        'it'       => (int) rp_config('telegram.thread_it', 7),
         'feedback' => (int) rp_config('telegram.thread_feedback', 95),
         default    => (int) rp_config('telegram.thread_request', 96),
     };

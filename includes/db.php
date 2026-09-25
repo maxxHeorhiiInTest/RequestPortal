@@ -102,6 +102,8 @@ function rp_schema(): array
                 user_agent VARCHAR(255) NULL,
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,
+                deleted_at DATETIME NULL,
+                deleted_by VARCHAR(160) NULL,
                 PRIMARY KEY (id),
                 UNIQUE KEY uniq_public_code (public_code),
                 KEY idx_status (status),
@@ -168,6 +170,8 @@ function rp_schema(): array
                 created_by VARCHAR(160) NULL,
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,
+                deleted_at DATETIME NULL,
+                deleted_by VARCHAR(160) NULL,
                 PRIMARY KEY (id),
                 KEY idx_event_at (event_at),
                 KEY idx_status (status)
@@ -190,6 +194,8 @@ function rp_schema(): array
                 ip_address VARCHAR(45) NULL,
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,
+                deleted_at DATETIME NULL,
+                deleted_by VARCHAR(160) NULL,
                 PRIMARY KEY (id),
                 UNIQUE KEY uniq_feedback_code (public_code),
                 KEY idx_status (status),
@@ -269,6 +275,8 @@ function rp_schema(): array
                 ip_address VARCHAR(45) NULL,
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,
+                deleted_at DATETIME NULL,
+                deleted_by VARCHAR(160) NULL,
                 PRIMARY KEY (id),
                 UNIQUE KEY uniq_it_code (public_code),
                 KEY idx_status (status),
@@ -323,15 +331,27 @@ function rp_ensure_columns(PDO $pdo): void
         RP_TABLE_REQUESTS => [
             'faculty'    => "VARCHAR(255) NOT NULL DEFAULT ''",
             'department' => "VARCHAR(255) NOT NULL DEFAULT ''",
+            'deleted_at' => 'DATETIME NULL',
+            'deleted_by' => 'VARCHAR(160) NULL',
         ],
         RP_TABLE_FEEDBACK => [
-            'faculty'          => "VARCHAR(255) NOT NULL DEFAULT ''",
-            'department'       => "VARCHAR(255) NOT NULL DEFAULT ''",
+            'faculty'           => "VARCHAR(255) NOT NULL DEFAULT ''",
+            'department'        => "VARCHAR(255) NOT NULL DEFAULT ''",
             'requester_phone'   => "VARCHAR(80) NOT NULL DEFAULT ''",
             'requester_channel' => "VARCHAR(20) NOT NULL DEFAULT ''",
+            'deleted_at'        => 'DATETIME NULL',
+            'deleted_by'        => 'VARCHAR(160) NULL',
         ],
         RP_TABLE_ADMINS => [
             'role' => "VARCHAR(20) NOT NULL DEFAULT 'full'",
+        ],
+        RP_TABLE_CONTENT => [
+            'deleted_at' => 'DATETIME NULL',
+            'deleted_by' => 'VARCHAR(160) NULL',
+        ],
+        RP_TABLE_IT => [
+            'deleted_at' => 'DATETIME NULL',
+            'deleted_by' => 'VARCHAR(160) NULL',
         ],
     ];
 

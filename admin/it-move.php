@@ -41,7 +41,7 @@ if (!rp_csrf_valid($token) || $id <= 0 || !in_array($status, rp_it_statuses(), t
 
 $pdo    = rp_db();
 $ticket = rp_find_it_ticket($pdo, $id);
-if ($ticket === null) {
+if ($ticket === null || rp_item_is_deleted($ticket)) {
     http_response_code(404);
     echo json_encode(['ok' => false, 'error' => 'not_found']);
     exit;

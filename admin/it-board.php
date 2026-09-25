@@ -13,7 +13,7 @@ rp_require_admin();
 
 $pdo  = rp_db();
 $stmt = $pdo->query(
-    'SELECT * FROM ' . RP_TABLE_IT . ' ORDER BY created_at DESC, id DESC'
+    'SELECT * FROM ' . RP_TABLE_IT . ' WHERE ' . rp_sql_alive() . ' ORDER BY created_at DESC, id DESC'
 );
 $items = $stmt->fetchAll();
 

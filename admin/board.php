@@ -15,6 +15,7 @@ $pdo = rp_db();
 $stmt = $pdo->query(
     'SELECT r.*, (SELECT COUNT(*) FROM ' . RP_TABLE_FILES . ' f WHERE f.request_id = r.id) AS file_count
      FROM ' . RP_TABLE_REQUESTS . ' r
+     WHERE ' . rp_sql_alive('r') . '
      ORDER BY r.created_at DESC, r.id DESC'
 );
 $requests = $stmt->fetchAll();
