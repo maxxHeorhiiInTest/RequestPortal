@@ -50,8 +50,8 @@ if ($postOverflowed) {
     if ($values['type'] === '') {
         $errors[] = __('error.type');
     }
-    if ($values['target'] === '') {
-        $errors[] = __('error.target');
+    if ($values['target'] === '' || !rp_is_http_url($values['target'])) {
+        $errors[] = __('error.target_url');
     }
     if ($values['description'] === '') {
         $errors[] = __('error.description');
@@ -217,7 +217,7 @@ rp_header(__('form.title'));
 
             <div class="field">
                 <label for="target"><?= e(__('form.target')) ?> *</label>
-                <input type="text" id="target" name="target" maxlength="1000"
+                <input type="text" id="target" name="target" maxlength="1000" inputmode="url" spellcheck="false"
                        placeholder="<?= e(__('form.target_placeholder')) ?>"
                        value="<?= e($values['target']) ?>">
                 <small><?= e(__('form.target_hint')) ?></small>

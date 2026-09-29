@@ -158,7 +158,7 @@ def draw_requests(state: dict):
     d.text((280, 227), "або «Оновлення існуючої інформації»", font=font(13), fill=MUTED)
 
     boxes = {"type": type_box}
-    boxes["target"] = field(d, 56, 266, 720, 32, "Де саме розмістити або змінити *", state.get("target", ""), hl == "target", "посилання або назва розділу")
+    boxes["target"] = field(d, 56, 266, 720, 32, "Де саме розмістити або змінити *", state.get("target", ""), hl == "target", "https://uni-sport.edu.ua/…")
     boxes["description"] = field(d, 56, 326, 720, 40, "Що потрібно розмістити або змінити *", state.get("description", ""), hl == "description")
     boxes["faculty"] = field(d, 56, 392, 350, 32, "Факультет *", state.get("faculty", ""), hl == "faculty")
     boxes["department"] = field(d, 426, 392, 350, 32, "Кафедра *", state.get("department", ""), hl == "department")
@@ -398,12 +398,12 @@ def main() -> None:
         {"caption": "Ця сторінка — щоб попросити розмістити або виправити інформацію на сайті.", "hl": None, "hold": 2.8, "point": None, "move": False},
         {"caption": "Питання — «Питання / пропозиції». Подія — «Додати анонс». Техніка — «Заявка до IT-відділу».", "hl": None, "hold": 3.2, "point": None, "move": False},
         {"caption": "Оберіть тип: нове розміщення — якщо цього ще немає на сайті.", "hl": "type", "type": "new", "hold": 3.0, "point": "type", "click": True},
-        {"caption": "Напишіть, де саме це має бути: посилання на сторінку або назва розділу.", "hl": "target", "type": "new", "target": "Новини → Оголошення", "hold": 3.2, "point": "target", "click": True},
-        {"caption": "Своїми словами опишіть, що треба зробити. Чим зрозуміліше — тим швидше допоможуть.", "hl": "description", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "hold": 3.4, "point": "description", "click": True},
-        {"caption": "Обов’язково вкажіть факультет і кафедру.", "hl": "faculty", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "hold": 3.0, "point": "faculty", "click": True},
-        {"caption": "Напишіть ім’я і контакт: телефон, пошта або Telegram.", "hl": "contact", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Іван Петренко", "contact": "050 123 45 67", "hold": 3.2, "point": "contact", "click": True},
-        {"caption": "Файли можна додати, але не обов’язково.", "hl": "files", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Іван Петренко", "contact": "050 123 45 67", "hold": 2.6, "point": "files"},
-        {"caption": "Натисніть синю кнопку «Надіслати заявку» внизу.", "hl": "submit", "type": "new", "target": "Новини → Оголошення", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Іван Петренко", "contact": "050 123 45 67", "hold": 2.4, "point": "submit", "click": True},
+        {"caption": "У полі «Де саме розмістити або змінити» вставте посилання на сторінку, не назву розділу.", "hl": "target", "type": "new", "target": "https://uni-sport.edu.ua/news", "hold": 3.6, "point": "target", "click": True},
+        {"caption": "Своїми словами опишіть, що треба зробити. Чим зрозуміліше — тим швидше допоможуть.", "hl": "description", "type": "new", "target": "https://uni-sport.edu.ua/news", "description": "Просимо опублікувати оголошення про збори.", "hold": 3.4, "point": "description", "click": True},
+        {"caption": "Обов’язково вкажіть факультет і кафедру.", "hl": "faculty", "type": "new", "target": "https://uni-sport.edu.ua/news", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "hold": 3.0, "point": "faculty", "click": True},
+        {"caption": "Напишіть ім’я і контакт: телефон, пошта або Telegram.", "hl": "contact", "type": "new", "target": "https://uni-sport.edu.ua/news", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Іван Петренко", "contact": "050 123 45 67", "hold": 3.2, "point": "contact", "click": True},
+        {"caption": "Файли можна додати, але не обов’язково.", "hl": "files", "type": "new", "target": "https://uni-sport.edu.ua/news", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Іван Петренко", "contact": "050 123 45 67", "hold": 2.6, "point": "files"},
+        {"caption": "Натисніть синю кнопку «Надіслати заявку» внизу.", "hl": "submit", "type": "new", "target": "https://uni-sport.edu.ua/news", "description": "Просимо опублікувати оголошення про збори.", "faculty": "Факультет спорту", "department": "Кафедра футболу", "name": "Іван Петренко", "contact": "050 123 45 67", "hold": 2.4, "point": "submit", "click": True},
         {"caption": "З’явиться номер заявки. Запишіть його або сфотографуйте екран.", "success": "REQ-2026-XXXXXX", "hold": 3.8, "point": None, "move": False},
     ]
     render_story(draw_requests, request_story, OUT / "requests.mp4", OUT / "requests.jpg")

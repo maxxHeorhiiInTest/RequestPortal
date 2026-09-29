@@ -83,6 +83,22 @@ function rp_clean_string(mixed $value, int $maxLength): string
     return mb_substr($value, 0, $maxLength, 'UTF-8');
 }
 
+/** True for a single http(s) URL, not free text. */
+function rp_is_http_url(string $value): bool
+{
+    $value = trim($value);
+    if ($value === '' || preg_match('/\s/', $value) === 1) {
+        return false;
+    }
+    if (filter_var($value, FILTER_VALIDATE_URL) === false) {
+        return false;
+    }
+    $scheme = strtolower((string) (parse_url($value, PHP_URL_SCHEME) ?? ''));
+    $host   = (string) (parse_url($value, PHP_URL_HOST) ?? '');
+
+    return in_array($scheme, ['http', 'https'], true) && $host !== '';
+}
+
 /** True when the string has 7–15 digits (allows +380 50 123 45 67). */
 function rp_phone_looks_valid(string $phone): bool
 {
