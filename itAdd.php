@@ -189,8 +189,10 @@ rp_header(__('it.title'));
 
             <div class="field">
                 <label for="phone"><?= e(__('it.phone')) ?> *</label>
-                <input type="tel" id="phone" name="phone" maxlength="80" required
-                       autocomplete="tel" value="<?= e($values['phone']) ?>">
+                <input type="tel" id="phone" name="phone" maxlength="18" required
+                       autocomplete="tel" inputmode="tel" data-ua-phone
+                       data-ua-phone-msg="<?= e(__('error.phone_invalid')) ?>"
+                       value="<?= e($values['phone']) ?>">
                 <small><?= e(__('form.phone_hint')) ?></small>
             </div>
 

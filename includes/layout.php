@@ -234,6 +234,162 @@ function rp_footer(): void
     });
 })();
 </script>
+<script>
+(function () {
+    function digitsOf(value) {
+        return String(value || '').replace(/\D+/g, '');
+    }
+    function classify(value) {
+        value = String(value || '').trim();
+        if (value === '') {
+            return 'empty';
+        }
+        if (/(?:https?:\/\/)?(?:www\.)?(?:t|telegram)\.me(?:\/|$)/i.test(value)
+            || /^(?:telegram|телеграм)\b/i.test(value)
+            || (value.charAt(0) === '@' && value.indexOf('@', 1) === -1)
+        ) {
+            return 'telegram';
+        }
+        if (value.indexOf('@') !== -1) {
+            return 'email';
+        }
+        var digits = digitsOf(value);
+        var compact = value.replace(/[\s+\-().]/g, '');
+        if (digits !== '' && /^\d+$/.test(compact)) {
+            return 'phone';
+        }
+        return 'unknown';
+    }
+    function maxDigits(digits) {
+        if (digits.indexOf('380') === 0 || digits.charAt(0) === '3') {
+            return 12;
+        }
+        if (digits.indexOf('80') === 0) {
+            return 11;
+        }
+        if (digits.charAt(0) === '0') {
+            return 10;
+        }
+        return 9;
+    }
+    function isValidUa(digits) {
+        return (digits.length === 12 && digits.indexOf('380') === 0)
+            || (digits.length === 11 && digits.indexOf('80') === 0)
+            || (digits.length === 10 && digits.charAt(0) === '0')
+            || (digits.length === 9 && digits.charAt(0) !== '0'
+                && digits.indexOf('80') !== 0 && digits.indexOf('380') !== 0);
+    }
+    function isValidEmail(value) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+    }
+    function telegramNick(value) {
+        value = String(value || '').trim();
+        var match = value.match(/^(?:https?:\/\/)?(?:www\.)?(?:t|telegram)\.me\/([A-Za-z0-9_]{4,32})(?:\/|$)/i);
+        if (match) {
+            return match[1];
+        }
+        match = value.match(/^@([A-Za-z0-9_]{4,32})$/);
+        if (match) {
+            return match[1];
+        }
+        match = value.match(/^(?:telegram|телеграм)\s*:?\s*@?([A-Za-z0-9_]{4,32})$/i);
+        return match ? match[1] : '';
+    }
+    function trimPhone(value) {
+        var out = '';
+        var digits = '';
+        for (var i = 0; i < value.length; i++) {
+            var ch = value.charAt(i);
+            if (/\d/.test(ch)) {
+                if (digits.length >= maxDigits(digits + ch)) {
+                    continue;
+                }
+                digits += ch;
+                out += ch;
+            } else if ('+ -().'.indexOf(ch) !== -1) {
+                out += ch;
+            }
+        }
+        return out;
+    }
+    function msg(el, key) {
+        return el.getAttribute('data-ua-' + key + '-msg') || '';
+    }
+    function applyPhone(el, required) {
+        var next = trimPhone(el.value);
+        if (next !== el.value) {
+            el.value = next;
+        }
+        var digits = digitsOf(el.value);
+        if (digits === '') {
+            el.setCustomValidity('');
+            return;
+        }
+        el.setCustomValidity(isValidUa(digits) ? '' : msg(el, 'phone'));
+    }
+    function applyKind(el, kind, required) {
+        var value = String(el.value || '').trim();
+        if (value === '') {
+            el.setCustomValidity('');
+            return;
+        }
+        if (kind === 'email') {
+            el.setCustomValidity(isValidEmail(value) ? '' : msg(el, 'email'));
+            return;
+        }
+        if (kind === 'telegram') {
+            el.setCustomValidity(telegramNick(value) !== '' ? '' : msg(el, 'telegram'));
+            return;
+        }
+        if (kind === 'phone' || kind === 'whatsapp') {
+            applyPhone(el, required);
+            return;
+        }
+        el.setCustomValidity(msg(el, 'contact'));
+    }
+    function apply(el) {
+        var hard = el.hasAttribute('data-ua-phone');
+        var mixed = el.hasAttribute('data-ua-contact') || el.hasAttribute('data-ua-phone-soft');
+        var kind = el.getAttribute('data-ua-contact-kind') || '';
+        if (!hard && !mixed && kind === '') {
+            el.setCustomValidity('');
+            return;
+        }
+        if (hard || kind === 'whatsapp') {
+            applyPhone(el, el.required || hard);
+            return;
+        }
+        if (kind === 'email' || kind === 'telegram') {
+            applyKind(el, kind, el.required);
+            return;
+        }
+        if (!mixed) {
+            el.setCustomValidity('');
+            return;
+        }
+        var guessed = classify(el.value);
+        applyKind(el, guessed, el.required);
+    }
+    function bind(el) {
+        if (!el || el.getAttribute('data-ua-phone-bound') === '1') {
+            return;
+        }
+        el.setAttribute('data-ua-phone-bound', '1');
+        el.addEventListener('input', function () { apply(el); });
+        el.addEventListener('blur', function () { apply(el); });
+        apply(el);
+    }
+    window.rpBindUaPhones = function () {
+        document.querySelectorAll('[data-ua-phone], [data-ua-phone-soft], [data-ua-contact], [data-ua-contact-kind]').forEach(bind);
+        document.querySelectorAll('[data-ua-phone], [data-ua-phone-soft], [data-ua-contact], [data-ua-contact-kind]').forEach(apply);
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', window.rpBindUaPhones);
+    } else {
+        window.rpBindUaPhones();
+    }
+})();
+</script>
 <?php if (function_exists('rp_admin_user') && rp_admin_user() !== null): ?>
 <script type="application/json" id="admin-inbox-cfg"><?= json_encode([
     'poll'    => rp_url('admin/inbox-poll.php'),

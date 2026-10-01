@@ -99,12 +99,83 @@ function rp_is_http_url(string $value): bool
     return in_array($scheme, ['http', 'https'], true) && $host !== '';
 }
 
-/** True when the string has 7–15 digits (allows +380 50 123 45 67). */
+/** True for a Ukrainian number: +380XXXXXXXXX, 0XXXXXXXXX, or 9 local digits. */
 function rp_phone_looks_valid(string $phone): bool
 {
     $digits = preg_replace('/\D+/', '', $phone) ?? '';
+    $len    = strlen($digits);
+    if ($len === 12) {
+        return str_starts_with($digits, '380');
+    }
+    if ($len === 11) {
+        return str_starts_with($digits, '80');
+    }
+    if ($len === 10) {
+        return str_starts_with($digits, '0');
+    }
+    if ($len === 9) {
+        return !str_starts_with($digits, '0')
+            && !str_starts_with($digits, '80')
+            && !str_starts_with($digits, '380');
+    }
 
-    return strlen($digits) >= 7 && strlen($digits) <= 15;
+    return false;
+}
+
+/**
+ * What the mixed public contact field looks like.
+ *
+ * @return 'empty'|'email'|'telegram'|'phone'|'unknown'
+ */
+function rp_classify_public_contact(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return 'empty';
+    }
+    if (preg_match('~(?:https?://)?(?:www\.)?(?:t|telegram)\.me(?:/|$)~i', $value) === 1
+        || preg_match('/^(?:telegram|телеграм)\b/iu', $value) === 1
+        || (str_starts_with($value, '@') && !str_contains(substr($value, 1), '@'))
+    ) {
+        return 'telegram';
+    }
+    if (str_contains($value, '@')) {
+        return 'email';
+    }
+    $digits  = preg_replace('/\D+/', '', $value) ?? '';
+    $compact = preg_replace('/[\s+\-().]/u', '', $value) ?? '';
+    if ($digits !== '' && $compact !== '' && preg_match('/^\d+$/', $compact) === 1) {
+        return 'phone';
+    }
+
+    return 'unknown';
+}
+
+/** True when the field is a number, not an email or Telegram handle. */
+function rp_looks_like_phone_input(string $value): bool
+{
+    return rp_classify_public_contact($value) === 'phone';
+}
+
+function rp_email_looks_valid(string $value): bool
+{
+    return filter_var(trim($value), FILTER_VALIDATE_EMAIL) !== false;
+}
+
+/** Error for the mixed public contact field, or null when it is valid. */
+function rp_public_contact_error(string $value): ?string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return __('error.contact');
+    }
+
+    return match (rp_classify_public_contact($value)) {
+        'email' => rp_email_looks_valid($value) ? null : __('error.contact_email'),
+        'telegram' => rp_telegram_nick($value) !== '' ? null : __('error.contact_telegram'),
+        'phone' => rp_phone_looks_valid($value) ? null : __('error.phone_invalid'),
+        default => __('error.contact_invalid'),
+    };
 }
 
 /** Digits only, with a UA-friendly 380 prefix when the number looks local. */

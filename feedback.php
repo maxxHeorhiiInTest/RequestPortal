@@ -221,8 +221,10 @@ rp_header(__('feedback.title'));
 
             <div class="field">
                 <label for="phone"><?= e(__('form.phone')) ?> *</label>
-                <input type="tel" id="phone" name="phone" maxlength="80" required
-                       autocomplete="tel" value="<?= e($values['phone']) ?>">
+                <input type="tel" id="phone" name="phone" maxlength="18" required
+                       autocomplete="tel" inputmode="tel" data-ua-phone
+                       data-ua-phone-msg="<?= e(__('error.phone_invalid')) ?>"
+                       value="<?= e($values['phone']) ?>">
                 <small><?= e(__('form.phone_hint')) ?></small>
             </div>
 
@@ -242,6 +244,10 @@ rp_header(__('feedback.title'));
             <div class="field">
                 <label for="contact" id="contact-label"><?= e(__('form.channel_contact')) ?> *</label>
                 <input type="text" id="contact" name="contact" maxlength="255" required
+                       data-ua-phone-msg="<?= e(__('error.phone_invalid')) ?>"
+                       data-ua-email-msg="<?= e(__('error.channel_contact.email')) ?>"
+                       data-ua-telegram-msg="<?= e(__('error.channel_contact.telegram')) ?>"
+                       data-ua-contact-msg="<?= e(__('error.contact_invalid')) ?>"
                        value="<?= e($values['contact']) ?>">
                 <small id="contact-hint"><?= e(__('form.channel_contact_hint')) ?></small>
             </div>
@@ -298,8 +304,21 @@ rp_header(__('feedback.title'));
                 contactHint.textContent = meta.hint;
                 contact.type = meta.type;
                 contact.setAttribute('placeholder', meta.hint);
+                contact.setAttribute('data-ua-contact-kind', channel);
+                if (channel === 'whatsapp') {
+                    contact.setAttribute('data-ua-phone', '');
+                    contact.setAttribute('maxlength', '18');
+                    contact.setAttribute('inputmode', 'tel');
+                } else {
+                    contact.removeAttribute('data-ua-phone');
+                    contact.setAttribute('maxlength', '255');
+                    contact.removeAttribute('inputmode');
+                }
                 if (channel === 'whatsapp' && phone && !contact.value && phone.value) {
                     contact.value = phone.value;
+                }
+                if (window.rpBindUaPhones) {
+                    window.rpBindUaPhones();
                 }
             }
             form.querySelectorAll('input[name="channel"]').forEach(function (radio) {

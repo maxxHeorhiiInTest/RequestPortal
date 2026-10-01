@@ -65,10 +65,9 @@ if ($postOverflowed) {
     if ($values['name'] === '') {
         $errors[] = __('error.name');
     }
-    if ($values['contact'] === '') {
-        $errors[] = __('error.contact');
-    } elseif (mb_strlen($values['contact']) < 4) {
-        $errors[] = __('error.contact_invalid');
+    $contactError = rp_public_contact_error($values['contact']);
+    if ($contactError !== null) {
+        $errors[] = $contactError;
     }
 
     // Honeypot: a filled-in hidden field means a bot, answer as if it worked.
@@ -253,7 +252,12 @@ rp_header(__('form.title'));
                 </div>
                 <div class="field">
                     <label for="contact"><?= e(__('form.contact')) ?> *</label>
-                    <input type="text" id="contact" name="contact" maxlength="255" value="<?= e($values['contact']) ?>">
+                    <input type="text" id="contact" name="contact" maxlength="255" required data-ua-contact
+                           data-ua-phone-msg="<?= e(__('error.phone_invalid')) ?>"
+                           data-ua-email-msg="<?= e(__('error.contact_email')) ?>"
+                           data-ua-telegram-msg="<?= e(__('error.contact_telegram')) ?>"
+                           data-ua-contact-msg="<?= e(__('error.contact_invalid')) ?>"
+                           value="<?= e($values['contact']) ?>">
                     <small><?= e(__('form.contact_hint')) ?></small>
                 </div>
             </div>
