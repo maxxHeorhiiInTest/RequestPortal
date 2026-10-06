@@ -3,5 +3,10 @@ config.php
 .admin-pass.tmp
 storage/uploads/*
 !storage/uploads/.htaccess
+storage/cartridges/*
+!storage/cartridges/.htaccess
+lib/tfpdf/font/unifont/*.mtx.php
+lib/tfpdf/font/unifont/*.cw.dat
+lib/tfpdf/font/unifont/*.cw127.php
 .DS_Store
 .idea/

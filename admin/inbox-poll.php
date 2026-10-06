@@ -120,6 +120,26 @@ if (rp_admin_can('it')) {
             'created' => (string) $row['created_at'],
         ];
     }
+
+    $stmt = $pdo->prepare(
+        'SELECT id, public_code, printer_model, cartridge_model, building, room, created_at
+         FROM ' . RP_TABLE_CARTRIDGE . '
+         WHERE created_at >= :since AND ' . rp_sql_alive() . '
+         ORDER BY created_at ASC, id ASC
+         LIMIT 20'
+    );
+    $stmt->execute(['since' => $since]);
+    foreach ($stmt->fetchAll() as $row) {
+        $items[] = [
+            'kind'    => 'cartridge',
+            'id'      => (int) $row['id'],
+            'code'    => (string) $row['public_code'],
+            'title'   => $snippet((string) $row['printer_model'] . ' / ' . (string) $row['cartridge_model']),
+            'who'     => trim((string) $row['building'] . ' / ' . (string) $row['room']),
+            'url'     => rp_url('admin/cartridge-view.php?id=' . (int) $row['id']),
+            'created' => (string) $row['created_at'],
+        ];
+    }
 }
 
 usort($items, static function (array $a, array $b): int {

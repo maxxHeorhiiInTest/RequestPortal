@@ -962,3 +962,59 @@ body.board-page main.wrap { max-width: 1400px; }
     .page-tip-box { left: 0; right: 0; width: auto; }
     .page-tip-box::before { right: auto; left: 28px; }
 }
+
+.nav-printer,
+.home-printer {
+    display: inline-block;
+    vertical-align: -3px;
+    margin-right: 4px;
+}
+.admin-tab .nav-printer { width: 16px; height: 16px; }
+
+.badge.status-sent { background: #fdf4e3; border-color: #e8cd96; color: #85601d; }
+.badge.status-refilled { background: var(--success-bg); border-color: var(--success-border); color: #23603c; }
+
+.cartridge-lookup-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.cartridge-lookup-row input { flex: 1 1 220px; }
+.cartridge-letterhead {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.cartridge-letterhead img {
+    height: 48px;
+    width: auto;
+}
+.cartridge-code {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--primary);
+    margin: 0 0 16px;
+}
+.cartridge-qr {
+    text-align: center;
+    margin: 24px 0 8px;
+}
+.cartridge-qr svg { display: inline-block; }
+.cartridge-qr-code {
+    margin-top: 10px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+.cartridge-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@media print {
+    .topbar, .footer, .admin-tabs, .admin-subtabs, .no-print, .page-tip { display: none !important; }
+    body { background: #fff; }
+    main.wrap { max-width: none; padding: 0; }
+    .card { box-shadow: none; border: 0; }
+    .cartridge-blank, .cartridge-firm-sheet { page-break-inside: avoid; }
+}
+

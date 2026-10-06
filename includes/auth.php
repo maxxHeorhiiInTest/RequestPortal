@@ -102,7 +102,7 @@ function rp_admin_script_section(string $script): ?string
     if (in_array($script, ['trash.php', 'soft-delete.php', 'soft-restore.php'], true)) {
         return 'full';
     }
-    if (in_array($script, ['it.php', 'it-view.php', 'it-board.php', 'it-move.php'], true)) {
+    if (in_array($script, ['it.php', 'it-view.php', 'it-board.php', 'it-move.php', 'cartridge.php', 'cartridge-view.php', 'cartridge-print.php'], true)) {
         return 'it';
     }
     if (in_array($script, ['index.php', 'view.php', 'board.php', 'board-move.php', 'download.php'], true)) {

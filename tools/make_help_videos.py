@@ -95,16 +95,17 @@ def chrome(active: str) -> Image.Image:
         ("plan", "Додати анонс"),
         ("feedback", "Питання / пропозиції"),
         ("it", "Заявка до IT-відділу"),
+        ("cartridge", "Заправка картриджа"),
     ]
-    x = 40
+    x = 32
     for key, label in tabs:
-        fnt = font(14, True)
+        fnt = font(13, True)
         tw = d.textlength(label, font=fnt)
         color = PRIMARY if key == active else MUTED
         d.text((x, y + 2), label, font=fnt, fill=color)
         if key == active:
             d.line((x, 116, x + tw, 116), fill=PRIMARY, width=3)
-        x += tw + 20
+        x += tw + 14
     return img
 
 
@@ -324,6 +325,49 @@ def draw_it(state: dict):
     return img, boxes
 
 
+def draw_cartridge(state: dict):
+    img = chrome("cartridge")
+    d = ImageDraw.Draw(img)
+    round_rect(d, (32, 128, W - 32, H - CAPTION_H - 12), 8, CARD, BORDER)
+    if state.get("success"):
+        d.text((56, 140), "Бланк на заправку картриджа", font=font(22, True), fill=TEXT)
+        d.text((56, 178), state["success"], font=font(26, True), fill=PRIMARY)
+        d.text((56, 220), "Корпус 1 · кабінет 215 · HP LaserJet · CF283A", font=font(16), fill=TEXT)
+        d.text((56, 248), "Статус: Сформовано", font=font(16, True), fill=PRIMARY_DARK)
+        round_rect(d, (520, 210, 700, 390), 6, WHITE, BORDER, 2)
+        for i in range(8):
+            for j in range(8):
+                if (i + j) % 2 == 0 or i in (0, 7) or j in (0, 7):
+                    d.rectangle((536 + j * 18, 226 + i * 18, 552 + j * 18, 242 + i * 18), fill=TEXT)
+        d.text((530, 400), state["success"], font=font(16, True), fill=TEXT)
+        btn = (56, 430, 200, 470)
+        round_rect(d, btn, 6, PRIMARY)
+        d.text((78, 440), "Друк", font=font(16, True), fill=WHITE)
+        caption_bar(img, state["caption"])
+        return img, {}
+
+    d.text((56, 140), "Заправка картриджа", font=font(22, True), fill=TEXT)
+    d.text((56, 168), "Сформуйте заявку або перевірте статус за номером.", font=font(13), fill=MUTED)
+    hl = state.get("hl")
+    boxes = {}
+    boxes["lookup"] = field(d, 56, 196, 520, 32, "Код заявки", state.get("lookup", ""), hl == "lookup", "CRG-2026-XXXXXX")
+    round_rect(d, (590, 216, 760, 248), 6, PRIMARY if hl == "lookup" else WHITE, PRIMARY if hl == "lookup" else BORDER)
+    d.text((608, 222), "Подивитися статус", font=font(13, True), fill=WHITE if hl == "lookup" else TEXT)
+    d.text((56, 268), "Сформувати заявку", font=font(18, True), fill=TEXT)
+    boxes["building"] = field(d, 56, 300, 350, 32, "Корпус *", state.get("building", ""), hl == "building")
+    boxes["room"] = field(d, 426, 300, 350, 32, "Кабінет *", state.get("room", ""), hl == "room")
+    boxes["printer"] = field(d, 56, 360, 350, 32, "Модель принтера *", state.get("printer", ""), hl == "printer")
+    boxes["cartridge"] = field(d, 426, 360, 350, 32, "Модель картриджа *", state.get("cartridge", ""), hl == "cartridge")
+    boxes["name"] = field(d, 56, 420, 350, 28, "Ім’я", state.get("name", ""), hl == "name")
+    boxes["phone"] = field(d, 426, 420, 350, 28, "Телефон", state.get("phone", ""), hl == "phone", "+380 50 123 45 67")
+    btn = (56, 478, 300, 516)
+    round_rect(d, btn, 6, PRIMARY_DARK if hl == "submit" else PRIMARY)
+    d.text((78, 488), "Сформувати заявку", font=font(16, True), fill=WHITE)
+    boxes["submit"] = btn
+    caption_bar(img, state["caption"])
+    return img, boxes
+
+
 def box_point(box) -> tuple[int, int]:
     return (int((box[0] + box[2]) / 2), int(box[1] + 8))
 
@@ -396,7 +440,7 @@ def main() -> None:
 
     request_story = [
         {"caption": "Ця сторінка — щоб попросити розмістити або виправити інформацію на сайті.", "hl": None, "hold": 2.8, "point": None, "move": False},
-        {"caption": "Питання — «Питання / пропозиції». Подія — «Додати анонс». Техніка — «Заявка до IT-відділу».", "hl": None, "hold": 3.2, "point": None, "move": False},
+        {"caption": "Питання — «Питання / пропозиції». Заправка — «Заправка картриджа».", "hl": None, "hold": 3.2, "point": None, "move": False},
         {"caption": "Оберіть тип: нове розміщення — якщо цього ще немає на сайті.", "hl": "type", "type": "new", "hold": 3.0, "point": "type", "click": True},
         {"caption": "У полі «Де саме розмістити або змінити» вставте посилання на сторінку, не назву розділу.", "hl": "target", "type": "new", "target": "https://uni-sport.edu.ua/news", "hold": 3.6, "point": "target", "click": True},
         {"caption": "Своїми словами опишіть, що треба зробити. Чим зрозуміліше — тим швидше допоможуть.", "hl": "description", "type": "new", "target": "https://uni-sport.edu.ua/news", "description": "Просимо опублікувати оголошення про збори.", "hold": 3.4, "point": "description", "click": True},
@@ -419,7 +463,7 @@ def main() -> None:
     }
     feedback_story = [
         {"caption": "Ця сторінка — для запитання або пропозиції. Реєструватися не потрібно.", "hl": None, "hold": 2.8, "point": None, "move": False},
-        {"caption": "Сайт — «Заявки на сайт». Подія — «Додати анонс». Техніка — «Заявка до IT-відділу».", "hl": None, "hold": 3.2, "point": None, "move": False},
+        {"caption": "Сайт — «Заявки на сайт». Заправка — «Заправка картриджа». Техніка — «Заявка до IT-відділу».", "hl": None, "hold": 3.2, "point": None, "move": False},
         {"caption": "У полі «Питання / пропозиція» напишіть звернення своїми словами.", "hl": "message", "message": filled["message"], "hold": 3.2, "point": "message", "click": True},
         {"caption": "Фото чи документ можна додати, якщо це допоможе. Можна нічого не додавати.", "hl": "files", "message": filled["message"], "hold": 2.6, "point": "files"},
         {"caption": "Обов’язково вкажіть факультет і кафедру.", "hl": "faculty", "message": filled["message"], "faculty": filled["faculty"], "department": filled["department"], "hold": 2.8, "point": "faculty", "click": True},
@@ -434,7 +478,7 @@ def main() -> None:
 
     plan_story = [
         {"caption": "Ця сторінка — щоб повідомити про майбутню подію. Реєструватися не потрібно.", "hl": None, "hold": 2.8, "point": None, "move": False},
-        {"caption": "Сайт — «Заявки на сайт». Питання — «Питання / пропозиції». Техніка — «Заявка до IT-відділу».", "hl": None, "hold": 3.2, "point": None, "move": False},
+        {"caption": "Сайт — «Заявки на сайт». Питання — «Питання / пропозиції». Заправка — «Заправка картриджа».", "hl": None, "hold": 3.2, "point": None, "move": False},
         {"caption": "Напишіть коротку назву події.", "hl": "title", "title": "Кубок університету з футболу", "hold": 2.8, "point": "title", "click": True},
         {"caption": "Оберіть дату і час. Минулу дату поставити не можна.", "hl": "when", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "hold": 3.0, "point": "when", "click": True},
         {"caption": "Вкажіть підрозділ і відповідальну особу.", "hl": "responsible", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "department": "Кафедра футболу", "responsible": "Іван Петренко", "hold": 3.0, "point": "responsible", "click": True},
@@ -455,7 +499,7 @@ def main() -> None:
     }
     it_story = [
         {"caption": "Ця сторінка — щоб повідомити IT-відділ про технічну проблему.", "hl": None, "hold": 2.8, "point": None, "move": False},
-        {"caption": "Сайт — «Заявки на сайт». Подія — «Додати анонс». Питання — «Питання / пропозиції».", "hl": None, "hold": 3.2, "point": None, "move": False},
+        {"caption": "Сайт — «Заявки на сайт». Заправка — «Заправка картриджа». Питання — «Питання / пропозиції».", "hl": None, "hold": 3.2, "point": None, "move": False},
         {"caption": "Оберіть тип звернення: принтер, картридж, комп’ютер, мережа або інше.", "hl": "category", "category": "printer", "hold": 3.2, "point": "category", "click": True},
         {"caption": "Напишіть ім’я та прізвище співробітника.", "hl": "name", "category": "printer", "name": it_filled["name"], "hold": 2.6, "point": "name", "click": True},
         {"caption": "У полі «Контактний номер» вкажіть український номер: +380… або 0….", "hl": "phone", "category": "printer", "name": it_filled["name"], "phone": it_filled["phone"], "hold": 2.8, "point": "phone", "click": True},
@@ -466,7 +510,28 @@ def main() -> None:
     ]
     render_story(draw_it, it_story, OUT / "it.mp4", OUT / "it.jpg")
 
-    for name in ("requests.mp4", "feedback.mp4", "plan.mp4", "it.mp4"):
+    crg = {
+        "building": "Корпус 1",
+        "room": "215",
+        "printer": "HP LaserJet",
+        "cartridge": "CF283A",
+        "name": "Іван Петренко",
+        "phone": "+380 50 123 45 67",
+    }
+    cartridge_story = [
+        {"caption": "Ця сторінка — щоб здати картридж на заправку і отримати бланк.", "hl": None, "hold": 2.8, "point": None, "move": False},
+        {"caption": "Технічна несправність — «Заявка до IT-відділу». Тут лише заправка.", "hl": None, "hold": 3.2, "point": None, "move": False},
+        {"caption": "Щоб перевірити заявку, введіть код CRG-… і натисніть «Подивитися статус».", "hl": "lookup", "hold": 3.2, "point": "lookup", "click": True},
+        {"caption": "У полі «Корпус» напишіть корпус.", "hl": "building", "building": crg["building"], "hold": 2.6, "point": "building", "click": True},
+        {"caption": "У полі «Кабінет» вкажіть кабінет.", "hl": "room", "building": crg["building"], "room": crg["room"], "hold": 2.4, "point": "room", "click": True},
+        {"caption": "Вкажіть модель принтера і модель картриджа.", "hl": "printer", "building": crg["building"], "room": crg["room"], "printer": crg["printer"], "cartridge": crg["cartridge"], "hold": 3.0, "point": "printer", "click": True},
+        {"caption": "Ім’я і телефон можна не заповнювати.", "hl": "name", **crg, "hold": 2.6, "point": "name"},
+        {"caption": "Натисніть синю кнопку «Сформувати заявку».", "hl": "submit", **crg, "hold": 2.4, "point": "submit", "click": True},
+        {"caption": "Відкриється бланк з номером, QR-кодом і тим самим кодом під QR.", "success": "CRG-2026-XXXXXX", "hold": 3.8, "point": None, "move": False},
+    ]
+    render_story(draw_cartridge, cartridge_story, OUT / "cartridge.mp4", OUT / "cartridge.jpg")
+
+    for name in ("requests.mp4", "feedback.mp4", "plan.mp4", "it.mp4", "cartridge.mp4"):
         path = OUT / name
         print(f"{name} {path.stat().st_size / 1024:.0f} KB")
 

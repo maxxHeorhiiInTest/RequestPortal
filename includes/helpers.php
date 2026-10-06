@@ -517,6 +517,42 @@ function rp_request_types(): array
     return ['new', 'update'];
 }
 
+/** Absolute URL (scheme + host + path) for a QR code or an external link. */
+function rp_absolute_url(string $path = ''): string
+{
+    $configured = trim((string) rp_config('app.public_url', ''));
+    if ($configured !== '') {
+        return rtrim($configured, '/') . '/' . ltrim($path, '/');
+    }
+    $scheme = rp_is_https() ? 'https' : 'http';
+    $host   = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+
+    return $scheme . '://' . $host . rp_url($path);
+}
+
+/** Inline printer icon for tabs and the home card. */
+function rp_printer_icon(string $class = ''): string
+{
+    $attr = $class !== '' ? ' class="' . e($class) . '"' : '';
+
+    return '<svg' . $attr . ' xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">'
+        . '<path d="M7 3h10v4H7V3zm-3 6h16a2 2 0 0 1 2 2v6h-4v-2H6v2H2v-6a2 2 0 0 1 2-2zm3 10h10v3H7v-3zm10-8.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>'
+        . '</svg>';
+}
+
+/** @return list<string> */
+function rp_cartridge_statuses(): array
+{
+    return ['new', 'sent', 'refilled'];
+}
+
+function rp_cartridge_status_label(string $status): string
+{
+    $key = 'cartridge.status.' . $status;
+
+    return __($key) === $key ? $status : __($key);
+}
+
 function rp_status_label(string $status): string
 {
     return __('status.' . $status);

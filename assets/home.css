@@ -233,6 +233,22 @@ body.home {
     font-weight: 400;
 }
 
+.home-card-icon {
+    flex: 0 0 auto;
+    color: var(--nufvsu-yellow);
+    display: flex;
+}
+.home-card-icon svg {
+    width: 28px;
+    height: 28px;
+}
+.home-nav .home-printer {
+    width: 14px;
+    height: 14px;
+    vertical-align: -2px;
+    margin-right: 4px;
+}
+
 .home-foot {
     display: flex;
     flex-wrap: wrap;

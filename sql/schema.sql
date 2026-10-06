@@ -211,3 +211,43 @@ CREATE TABLE IF NOT EXISTS rp_it_ticket_history (
     CONSTRAINT fk_it_history FOREIGN KEY (ticket_id)
         REFERENCES rp_it_tickets (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rp_cartridge_requests (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_code VARCHAR(20) NOT NULL,
+    building VARCHAR(80) NOT NULL,
+    room VARCHAR(80) NOT NULL,
+    printer_model VARCHAR(160) NOT NULL,
+    cartridge_model VARCHAR(160) NOT NULL,
+    requester_name VARCHAR(160) NOT NULL DEFAULT '',
+    requester_phone VARCHAR(80) NOT NULL DEFAULT '',
+    status ENUM('new', 'sent', 'refilled') NOT NULL DEFAULT 'new',
+    pdf_path VARCHAR(255) NULL,
+    lang CHAR(2) NOT NULL DEFAULT 'uk',
+    ip_address VARCHAR(45) NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    deleted_at DATETIME NULL,
+    deleted_by VARCHAR(160) NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uniq_cartridge_code (public_code),
+    KEY idx_status (status),
+    KEY idx_created_at (created_at),
+    KEY idx_ip_created (ip_address, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rp_cartridge_history (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    request_id INT UNSIGNED NOT NULL,
+    action VARCHAR(40) NOT NULL,
+    old_value VARCHAR(255) NULL,
+    new_value VARCHAR(255) NULL,
+    note TEXT NULL,
+    actor VARCHAR(160) NOT NULL,
+    actor_ip VARCHAR(45) NULL,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_request_created (request_id, created_at),
+    CONSTRAINT fk_cartridge_history FOREIGN KEY (request_id)
+        REFERENCES rp_cartridge_requests (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

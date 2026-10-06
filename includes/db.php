@@ -14,6 +14,8 @@ const RP_TABLE_VISITS = 'rp_page_visits';
 const RP_TABLE_HIDDEN_HOLIDAYS = 'rp_hidden_holidays';
 const RP_TABLE_IT = 'rp_it_tickets';
 const RP_TABLE_IT_HISTORY = 'rp_it_ticket_history';
+const RP_TABLE_CARTRIDGE = 'rp_cartridge_requests';
+const RP_TABLE_CARTRIDGE_HISTORY = 'rp_cartridge_history';
 const RP_VISIT_DEDUP_MINUTES = 30;
 const RP_VISIT_RETENTION_DAYS = 90;
 
@@ -300,6 +302,48 @@ function rp_schema(): array
                 CONSTRAINT fk_it_history FOREIGN KEY (ticket_id)
                     REFERENCES ' . RP_TABLE_IT . ' (id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_CARTRIDGE => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_CARTRIDGE . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                public_code VARCHAR(20) NOT NULL,
+                building VARCHAR(80) NOT NULL,
+                room VARCHAR(80) NOT NULL,
+                printer_model VARCHAR(160) NOT NULL,
+                cartridge_model VARCHAR(160) NOT NULL,
+                requester_name VARCHAR(160) NOT NULL DEFAULT \'\',
+                requester_phone VARCHAR(80) NOT NULL DEFAULT \'\',
+                status ENUM(\'new\', \'sent\', \'refilled\') NOT NULL DEFAULT \'new\',
+                pdf_path VARCHAR(255) NULL,
+                lang CHAR(2) NOT NULL DEFAULT \'uk\',
+                ip_address VARCHAR(45) NULL,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                deleted_at DATETIME NULL,
+                deleted_by VARCHAR(160) NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uniq_cartridge_code (public_code),
+                KEY idx_status (status),
+                KEY idx_created_at (created_at),
+                KEY idx_ip_created (ip_address, created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_CARTRIDGE_HISTORY => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_CARTRIDGE_HISTORY . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                request_id INT UNSIGNED NOT NULL,
+                action VARCHAR(40) NOT NULL,
+                old_value VARCHAR(255) NULL,
+                new_value VARCHAR(255) NULL,
+                note TEXT NULL,
+                actor VARCHAR(160) NOT NULL,
+                actor_ip VARCHAR(45) NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_request_created (request_id, created_at),
+                CONSTRAINT fk_cartridge_history FOREIGN KEY (request_id)
+                    REFERENCES ' . RP_TABLE_CARTRIDGE . ' (id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
     ];
 }
 
@@ -350,6 +394,10 @@ function rp_ensure_columns(PDO $pdo): void
             'deleted_by' => 'VARCHAR(160) NULL',
         ],
         RP_TABLE_IT => [
+            'deleted_at' => 'DATETIME NULL',
+            'deleted_by' => 'VARCHAR(160) NULL',
+        ],
+        RP_TABLE_CARTRIDGE => [
             'deleted_at' => 'DATETIME NULL',
             'deleted_by' => 'VARCHAR(160) NULL',
         ],
@@ -575,6 +623,86 @@ function rp_recent_it_count(PDO $pdo, string $ip): int
 
     $stmt = $pdo->prepare(
         'SELECT COUNT(*) FROM ' . RP_TABLE_IT . '
+         WHERE ip_address = :ip AND created_at >= (NOW() - INTERVAL 1 HOUR)'
+    );
+    $stmt->execute(['ip' => $ip]);
+
+    return (int) $stmt->fetchColumn();
+}
+
+function rp_log_cartridge_history(
+    PDO $pdo,
+    int $requestId,
+    string $action,
+    ?string $oldValue = null,
+    ?string $newValue = null,
+    ?string $note = null,
+    ?string $actor = null
+): void {
+    $stmt = $pdo->prepare(
+        'INSERT INTO ' . RP_TABLE_CARTRIDGE_HISTORY . '
+            (request_id, action, old_value, new_value, note, actor, actor_ip, created_at)
+         VALUES (:request_id, :action, :old_value, :new_value, :note, :actor, :actor_ip, NOW())'
+    );
+    $stmt->execute([
+        'request_id' => $requestId,
+        'action'     => $action,
+        'old_value'  => $oldValue,
+        'new_value'  => $newValue,
+        'note'       => $note !== null && $note !== '' ? $note : null,
+        'actor'      => $actor ?? 'system',
+        'actor_ip'   => rp_client_ip(),
+    ]);
+}
+
+/** @return array<string,mixed>|null */
+function rp_find_cartridge(PDO $pdo, int $id): ?array
+{
+    $stmt = $pdo->prepare('SELECT * FROM ' . RP_TABLE_CARTRIDGE . ' WHERE id = :id');
+    $stmt->execute(['id' => $id]);
+    $row = $stmt->fetch();
+
+    return $row ?: null;
+}
+
+/** @return array<string,mixed>|null */
+function rp_find_cartridge_by_code(PDO $pdo, string $code, bool $aliveOnly = true): ?array
+{
+    $code = strtoupper(rp_clean_string($code, 20));
+    if ($code === '') {
+        return null;
+    }
+    $sql = 'SELECT * FROM ' . RP_TABLE_CARTRIDGE . ' WHERE public_code = :code';
+    if ($aliveOnly) {
+        $sql .= ' AND ' . rp_sql_alive();
+    }
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute(['code' => $code]);
+    $row = $stmt->fetch();
+
+    return $row ?: null;
+}
+
+/** @return list<array<string,mixed>> */
+function rp_cartridge_history(PDO $pdo, int $requestId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT * FROM ' . RP_TABLE_CARTRIDGE_HISTORY . '
+         WHERE request_id = :id ORDER BY created_at DESC, id DESC'
+    );
+    $stmt->execute(['id' => $requestId]);
+
+    return $stmt->fetchAll();
+}
+
+function rp_recent_cartridge_count(PDO $pdo, string $ip): int
+{
+    if ($ip === '') {
+        return 0;
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM ' . RP_TABLE_CARTRIDGE . '
          WHERE ip_address = :ip AND created_at >= (NOW() - INTERVAL 1 HOUR)'
     );
     $stmt->execute(['ip' => $ip]);

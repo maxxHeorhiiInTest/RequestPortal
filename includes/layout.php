@@ -27,7 +27,7 @@ function rp_header(string $title, string $context = 'public'): void
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title><?= e($title . ' — ' . $appName) ?></title>
-    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=22">
+    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=23">
 </head>
 <body class="<?= e($context) ?><?= in_array($script, ['board.php', 'plan.php', 'feedback-board.php', 'it-board.php'], true) ? ' board-page' : '' ?>">
 <header class="topbar">
@@ -47,6 +47,7 @@ function rp_header(string $title, string $context = 'public'): void
                 <a href="<?= e(rp_url('planAdd.php')) ?>"><?= e(__('nav.plan_add')) ?></a>
                 <a href="<?= e(rp_url('feedback.php')) ?>"><?= e(__('nav.feedback')) ?></a>
                 <a href="<?= e(rp_url('itAdd.php')) ?>"><?= e(__('nav.it')) ?></a>
+                <a href="<?= e(rp_url('cartridge.php')) ?>"><?= rp_printer_icon('nav-printer') ?> <?= e(__('nav.cartridge')) ?></a>
                 <a href="<?= e(rp_url('admin/login.php')) ?>"><?= e(__('nav.admin')) ?></a>
             <?php endif; ?>
             <?php if ($siteUrl !== ''): ?>
@@ -72,6 +73,8 @@ function rp_header(string $title, string $context = 'public'): void
                href="<?= e(rp_url('feedback.php')) ?>"><?= e(__('public.tab.feedback')) ?></a>
             <a class="admin-tab<?= $script === 'itAdd.php' ? ' active' : '' ?>"
                href="<?= e(rp_url('itAdd.php')) ?>"><?= e(__('public.tab.it')) ?></a>
+            <a class="admin-tab<?= $script === 'cartridge.php' ? ' active' : '' ?>"
+               href="<?= e(rp_url('cartridge.php')) ?>"><?= rp_printer_icon('nav-printer') ?> <?= e(__('public.tab.cartridge')) ?></a>
         </nav>
     <?php endif; ?>
     <?php if ($context === 'admin' && $admin !== null): ?>
@@ -79,7 +82,8 @@ function rp_header(string $title, string $context = 'public'): void
         $isRequests = in_array($script, ['index.php', 'view.php', 'board.php'], true);
         $isPlan     = in_array($script, ['plan.php', 'plan-edit.php', 'plan-inbox.php'], true);
         $isFeedback = in_array($script, ['feedback.php', 'feedback-view.php', 'feedback-board.php'], true);
-        $isIt       = in_array($script, ['it.php', 'it-view.php', 'it-board.php'], true);
+        $isIt        = in_array($script, ['it.php', 'it-view.php', 'it-board.php'], true);
+        $isCartridge = in_array($script, ['cartridge.php', 'cartridge-view.php', 'cartridge-print.php'], true);
         $isStats    = $script === 'stats.php';
         $isTrash    = $script === 'trash.php';
         require_once __DIR__ . '/content.php';
@@ -103,6 +107,8 @@ function rp_header(string $title, string $context = 'public'): void
             <?php if (rp_admin_can('it')): ?>
             <a class="admin-tab<?= $isIt ? ' active' : '' ?>"
                href="<?= e(rp_url('admin/it-board.php')) ?>"><?= e(__('admin.section.it')) ?></a>
+            <a class="admin-tab<?= $isCartridge ? ' active' : '' ?>"
+               href="<?= e(rp_url('admin/cartridge.php')) ?>"><?= rp_printer_icon('nav-printer') ?> <?= e(__('admin.section.cartridge')) ?></a>
             <?php endif; ?>
             <?php if (rp_admin_can('stats')): ?>
             <a class="admin-tab<?= $isStats ? ' active' : '' ?>"
@@ -144,6 +150,13 @@ function rp_header(string $title, string $context = 'public'): void
                    href="<?= e(rp_url('admin/it.php')) ?>"><?= e(__('admin.list_title')) ?></a>
                 <a class="admin-tab<?= $script === 'it-board.php' ? ' active' : '' ?>"
                    href="<?= e(rp_url('admin/it-board.php')) ?>"><?= e(__('admin.board_title')) ?></a>
+            </nav>
+        <?php elseif ($isCartridge): ?>
+            <nav class="admin-subtabs">
+                <a class="admin-tab<?= in_array($script, ['cartridge.php', 'cartridge-view.php'], true) ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/cartridge.php')) ?>"><?= e(__('admin.list_title')) ?></a>
+                <a class="admin-tab<?= $script === 'cartridge-print.php' ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/cartridge-print.php')) ?>"><?= e(__('admin.cartridge.print_firm')) ?></a>
             </nav>
         <?php endif; ?>
     <?php endif; ?>
@@ -400,7 +413,8 @@ function rp_footer(): void
         'request'  => __('admin.inbox.request'),
         'feedback' => __('admin.inbox.feedback'),
         'plan'     => __('admin.inbox.plan'),
-        'it'       => __('admin.inbox.it'),
+        'it'        => __('admin.inbox.it'),
+        'cartridge' => __('admin.inbox.cartridge'),
     ],
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?></script>
 <script>

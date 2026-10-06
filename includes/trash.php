@@ -8,7 +8,7 @@ declare(strict_types=1);
 /** @return list<string> */
 function rp_trash_kinds(): array
 {
-    return ['request', 'plan', 'feedback', 'it'];
+    return ['request', 'plan', 'feedback', 'it', 'cartridge'];
 }
 
 function rp_sql_alive(string $alias = ''): string
@@ -29,7 +29,8 @@ function rp_trash_table(string $kind): ?string
         'request'  => RP_TABLE_REQUESTS,
         'plan'     => RP_TABLE_CONTENT,
         'feedback' => RP_TABLE_FEEDBACK,
-        'it'       => RP_TABLE_IT,
+        'it'        => RP_TABLE_IT,
+        'cartridge' => RP_TABLE_CARTRIDGE,
         default    => null,
     };
 }
@@ -40,7 +41,8 @@ function rp_trash_view_url(string $kind, int $id): string
         'request'  => 'admin/view.php?id=' . $id,
         'plan'     => 'admin/plan-edit.php?id=' . $id,
         'feedback' => 'admin/feedback-view.php?id=' . $id,
-        'it'       => 'admin/it-view.php?id=' . $id,
+        'it'        => 'admin/it-view.php?id=' . $id,
+        'cartridge' => 'admin/cartridge-view.php?id=' . $id,
         default    => 'admin/trash.php',
     };
 }
@@ -51,7 +53,8 @@ function rp_trash_list_url(string $kind): string
         'request'  => 'admin/index.php',
         'plan'     => 'admin/plan.php',
         'feedback' => 'admin/feedback.php',
-        'it'       => 'admin/it.php',
+        'it'        => 'admin/it.php',
+        'cartridge' => 'admin/cartridge.php',
         default    => 'admin/trash.php',
     };
 }
@@ -66,7 +69,8 @@ function rp_trash_find(PDO $pdo, string $kind, int $id): ?array
         'request'  => rp_find_request($pdo, $id),
         'plan'     => rp_find_content($pdo, $id),
         'feedback' => rp_find_feedback($pdo, $id),
-        'it'       => rp_find_it_ticket($pdo, $id),
+        'it'        => rp_find_it_ticket($pdo, $id),
+        'cartridge' => rp_find_cartridge($pdo, $id),
         default    => null,
     };
 }
@@ -74,7 +78,7 @@ function rp_trash_find(PDO $pdo, string $kind, int $id): ?array
 function rp_trash_title(string $kind, array $row): string
 {
     return match ($kind) {
-        'request', 'feedback', 'it' => (string) ($row['public_code'] ?? ''),
+        'request', 'feedback', 'it', 'cartridge' => (string) ($row['public_code'] ?? ''),
         'plan' => (string) ($row['title'] ?? ''),
         default => '#' . (int) ($row['id'] ?? 0),
     };
@@ -134,6 +138,8 @@ function rp_trash_log(PDO $pdo, string $kind, int $id, string $action, string $a
         rp_log_feedback_history($pdo, $id, $action, null, null, null, $actor);
     } elseif ($kind === 'it') {
         rp_log_it_history($pdo, $id, $action, null, null, null, $actor);
+    } elseif ($kind === 'cartridge') {
+        rp_log_cartridge_history($pdo, $id, $action, null, null, null, $actor);
     }
 }
 
