@@ -53,6 +53,7 @@ rp_header(__('admin.cartridge.print_firm'), 'admin');
                     <th><?= e(__('cartridge.room')) ?></th>
                     <th><?= e(__('cartridge.printer')) ?></th>
                     <th><?= e(__('cartridge.cartridge')) ?></th>
+                    <th><?= e(__('cartridge.comment')) ?></th>
                     <th><?= e(__('admin.table.status')) ?></th>
                 </tr>
                 </thead>
@@ -65,6 +66,7 @@ rp_header(__('admin.cartridge.print_firm'), 'admin');
                         <td><?= e((string) $row['room']) ?></td>
                         <td><?= e((string) $row['printer_model']) ?></td>
                         <td><?= e((string) $row['cartridge_model']) ?></td>
+                        <td><?= e(trim((string) ($row['comment'] ?? '')) !== '' ? (string) $row['comment'] : '—') ?></td>
                         <td><?= e(rp_cartridge_status_label((string) $row['status'])) ?></td>
                     </tr>
                 <?php endforeach; ?>

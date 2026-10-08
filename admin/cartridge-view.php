@@ -109,6 +109,8 @@ rp_header(__('admin.cartridge.view_title', $code), 'admin');
         <dd><?= e(trim((string) $ticket['requester_name']) !== '' ? (string) $ticket['requester_name'] : __('common.none')) ?></dd>
         <dt><?= e(__('cartridge.phone')) ?></dt>
         <dd><?= e(trim((string) $ticket['requester_phone']) !== '' ? (string) $ticket['requester_phone'] : __('common.none')) ?></dd>
+        <dt><?= e(__('cartridge.comment')) ?></dt>
+        <dd><?= e(trim((string) ($ticket['comment'] ?? '')) !== '' ? (string) $ticket['comment'] : __('common.none')) ?></dd>
         <dt><?= e(__('admin.table.created')) ?></dt>
         <dd><?= e(rp_format_datetime((string) $ticket['created_at'])) ?></dd>
         <dt><?= e(__('admin.meta.updated')) ?></dt>

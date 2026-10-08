@@ -974,6 +974,12 @@ body.board-page main.wrap { max-width: 1400px; }
 .badge.status-sent { background: #fdf4e3; border-color: #e8cd96; color: #85601d; }
 .badge.status-refilled { background: var(--success-bg); border-color: var(--success-border); color: #23603c; }
 
+.cartridge-comments {
+    margin-top: 4px;
+}
+.cartridge-comment-note {
+    margin-top: 12px;
+}
 .cartridge-lookup-row {
     display: flex;
     gap: 8px;

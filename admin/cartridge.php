@@ -37,7 +37,7 @@ if ($filters['status'] !== '') {
 }
 if ($filters['q'] !== '') {
     $like    = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $filters['q']) . '%';
-    $columns = ['t.public_code', 't.building', 't.room', 't.printer_model', 't.cartridge_model', 't.requester_name', 't.requester_phone'];
+    $columns = ['t.public_code', 't.building', 't.room', 't.printer_model', 't.cartridge_model', 't.requester_name', 't.requester_phone', 't.comment'];
     $parts   = [];
     foreach ($columns as $index => $column) {
         $parts[]              = $column . ' LIKE :q' . $index . " ESCAPE '\\\\'";

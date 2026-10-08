@@ -16,6 +16,50 @@ function rp_cartridge_status_url(string $code): string
 }
 
 /** @return list<string> */
+function rp_cartridge_comment_preset_ids(): array
+{
+    return ['stripe', 'not_detected', 'drum', 'faint', 'leak'];
+}
+
+function rp_cartridge_comment_preset_label(string $id): string
+{
+    $key = 'cartridge.comment.' . $id;
+
+    return __($key) === $key ? $id : __($key);
+}
+
+/** @return list<string> */
+function rp_cartridge_posted_comment_keys(mixed $posted): array
+{
+    $allowed = rp_cartridge_comment_preset_ids();
+    $raw     = is_array($posted) ? $posted : [];
+    $keys    = [];
+    foreach ($raw as $item) {
+        if (!is_string($item) || !in_array($item, $allowed, true) || in_array($item, $keys, true)) {
+            continue;
+        }
+        $keys[] = $item;
+    }
+
+    return $keys;
+}
+
+/** @param list<string> $keys */
+function rp_cartridge_compose_comment(array $keys, string $note): string
+{
+    $parts = [];
+    foreach ($keys as $id) {
+        $parts[] = rp_cartridge_comment_preset_label($id);
+    }
+    $note = trim($note);
+    if ($note !== '') {
+        $parts[] = $note;
+    }
+
+    return rp_clean_string(implode('; ', $parts), 1000);
+}
+
+/** @return list<string> */
 function rp_cartridge_qr_modules(string $text): array
 {
     $lib = RP_ROOT . '/lib/phpqrcode/phpqrcode.php';
@@ -179,6 +223,10 @@ function rp_cartridge_render_pdf(array $row, string $absPath): void
     if ($phone !== '') {
         $fields[__('cartridge.phone')] = $phone;
     }
+    $comment = trim((string) ($row['comment'] ?? ''));
+    if ($comment !== '') {
+        $fields[__('cartridge.comment')] = $comment;
+    }
 
     $y = 62;
     foreach ($fields as $label => $value) {
@@ -197,7 +245,13 @@ function rp_cartridge_render_pdf(array $row, string $absPath): void
     $n       = count($modules);
     $qrSize  = 42.0;
     $x0      = (210 - $qrSize) / 2;
-    $y0      = min(230, max($y + 8, 200));
+    $y0 = $y + 8;
+    if ($y0 < 198) {
+        $y0 = 198;
+    }
+    if ($y0 + $qrSize + 18 > 287) {
+        $y0 = 287 - $qrSize - 18;
+    }
     if ($n > 0) {
         $cell = $qrSize / $n;
         $pdf->SetFillColor(17, 17, 17);

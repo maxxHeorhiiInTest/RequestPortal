@@ -313,6 +313,7 @@ function rp_schema(): array
                 cartridge_model VARCHAR(160) NOT NULL,
                 requester_name VARCHAR(160) NOT NULL DEFAULT \'\',
                 requester_phone VARCHAR(80) NOT NULL DEFAULT \'\',
+                comment TEXT NULL,
                 status ENUM(\'new\', \'sent\', \'refilled\') NOT NULL DEFAULT \'new\',
                 pdf_path VARCHAR(255) NULL,
                 lang CHAR(2) NOT NULL DEFAULT \'uk\',
@@ -400,6 +401,7 @@ function rp_ensure_columns(PDO $pdo): void
         RP_TABLE_CARTRIDGE => [
             'deleted_at' => 'DATETIME NULL',
             'deleted_by' => 'VARCHAR(160) NULL',
+            'comment'    => 'TEXT NULL',
         ],
     ];
 

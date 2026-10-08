@@ -221,6 +221,7 @@ CREATE TABLE IF NOT EXISTS rp_cartridge_requests (
     cartridge_model VARCHAR(160) NOT NULL,
     requester_name VARCHAR(160) NOT NULL DEFAULT '',
     requester_phone VARCHAR(80) NOT NULL DEFAULT '',
+    comment TEXT NULL,
     status ENUM('new', 'sent', 'refilled') NOT NULL DEFAULT 'new',
     pdf_path VARCHAR(255) NULL,
     lang CHAR(2) NOT NULL DEFAULT 'uk',

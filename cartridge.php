@@ -17,6 +17,8 @@ $values = [
     'cartridge_model'  => '',
     'name'             => '',
     'phone'            => '',
+    'comment_keys'     => [],
+    'comment_note'     => '',
 ];
 $lookupError = '';
 $ticket      = null;
@@ -48,6 +50,9 @@ if ($isPost && $action === 'create') {
     $values['cartridge_model'] = rp_clean_string($_POST['cartridge_model'] ?? '', 160);
     $values['name']            = rp_clean_string($_POST['name'] ?? '', 160);
     $values['phone']           = rp_clean_string($_POST['phone'] ?? '', 80);
+    $values['comment_keys']    = rp_cartridge_posted_comment_keys($_POST['comment_keys'] ?? []);
+    $values['comment_note']    = rp_clean_string($_POST['comment_note'] ?? '', 400);
+    $comment                   = rp_cartridge_compose_comment($values['comment_keys'], $values['comment_note']);
 
     if (!rp_csrf_valid($_POST['csrf_token'] ?? null)) {
         $errors[] = __('error.csrf');
@@ -87,9 +92,9 @@ if ($isPost && $action === 'create') {
                     $stmt = $pdo->prepare(
                         'INSERT INTO ' . RP_TABLE_CARTRIDGE . '
                             (public_code, building, room, printer_model, cartridge_model,
-                             requester_name, requester_phone, status, lang, ip_address, created_at, updated_at)
+                             requester_name, requester_phone, comment, status, lang, ip_address, created_at, updated_at)
                          VALUES (:code, :building, :room, :printer, :cartridge,
-                                 :name, :phone, \'new\', :lang, :ip, NOW(), NOW())'
+                                 :name, :phone, :comment, \'new\', :lang, :ip, NOW(), NOW())'
                     );
                     $stmt->execute([
                         'code'      => $code,
@@ -99,6 +104,7 @@ if ($isPost && $action === 'create') {
                         'cartridge' => $values['cartridge_model'],
                         'name'      => $values['name'],
                         'phone'     => $values['phone'],
+                        'comment'   => $comment,
                         'lang'      => rp_lang(),
                         'ip'        => rp_client_ip(),
                     ]);
@@ -178,6 +184,10 @@ if ($ticket !== null):
             <?php if (trim((string) $ticket['requester_phone']) !== ''): ?>
                 <dt><?= e(__('cartridge.phone')) ?></dt>
                 <dd><?= e((string) $ticket['requester_phone']) ?></dd>
+            <?php endif; ?>
+            <?php if (trim((string) ($ticket['comment'] ?? '')) !== ''): ?>
+                <dt><?= e(__('cartridge.comment')) ?></dt>
+                <dd><?= e((string) $ticket['comment']) ?></dd>
             <?php endif; ?>
         </dl>
         <div class="cartridge-qr">
@@ -260,6 +270,23 @@ if ($ticket !== null):
                            value="<?= e($values['cartridge_model']) ?>">
                 </div>
             </div>
+            <fieldset class="field">
+                <legend><?= e(__('cartridge.comment_legend')) ?></legend>
+                <div class="channel-list cartridge-comments">
+                    <?php foreach (rp_cartridge_comment_preset_ids() as $preset): ?>
+                        <label class="check">
+                            <input type="checkbox" name="comment_keys[]" value="<?= e($preset) ?>"
+                                <?= in_array($preset, $values['comment_keys'], true) ? 'checked' : '' ?>>
+                            <?= e(rp_cartridge_comment_preset_label($preset)) ?>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+                <div class="field cartridge-comment-note">
+                    <label for="comment_note"><?= e(__('cartridge.comment_other')) ?></label>
+                    <textarea id="comment_note" name="comment_note" rows="2" maxlength="400"><?= e($values['comment_note']) ?></textarea>
+                    <small><?= e(__('cartridge.comment_hint')) ?></small>
+                </div>
+            </fieldset>
             <div class="grid-2">
                 <div class="field">
                     <label for="name"><?= e(__('cartridge.name')) ?></label>

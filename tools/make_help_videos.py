@@ -347,22 +347,39 @@ def draw_cartridge(state: dict):
         return img, {}
 
     d.text((56, 140), "Заправка картриджа", font=font(22, True), fill=TEXT)
-    d.text((56, 168), "Сформуйте заявку або перевірте статус за номером.", font=font(13), fill=MUTED)
+    d.text((56, 166), "Сформуйте заявку або перевірте статус за номером.", font=font(13), fill=MUTED)
     hl = state.get("hl")
     boxes = {}
-    boxes["lookup"] = field(d, 56, 196, 520, 32, "Код заявки", state.get("lookup", ""), hl == "lookup", "CRG-2026-XXXXXX")
-    round_rect(d, (590, 216, 760, 248), 6, PRIMARY if hl == "lookup" else WHITE, PRIMARY if hl == "lookup" else BORDER)
-    d.text((608, 222), "Подивитися статус", font=font(13, True), fill=WHITE if hl == "lookup" else TEXT)
-    d.text((56, 268), "Сформувати заявку", font=font(18, True), fill=TEXT)
-    boxes["building"] = field(d, 56, 300, 350, 32, "Корпус *", state.get("building", ""), hl == "building")
-    boxes["room"] = field(d, 426, 300, 350, 32, "Кабінет *", state.get("room", ""), hl == "room")
-    boxes["printer"] = field(d, 56, 360, 350, 32, "Модель принтера *", state.get("printer", ""), hl == "printer")
-    boxes["cartridge"] = field(d, 426, 360, 350, 32, "Модель картриджа *", state.get("cartridge", ""), hl == "cartridge")
-    boxes["name"] = field(d, 56, 420, 350, 28, "Ім’я", state.get("name", ""), hl == "name")
-    boxes["phone"] = field(d, 426, 420, 350, 28, "Телефон", state.get("phone", ""), hl == "phone", "+380 50 123 45 67")
-    btn = (56, 478, 300, 516)
+    boxes["lookup"] = field(d, 56, 186, 520, 28, "Код заявки", state.get("lookup", ""), hl == "lookup", "CRG-2026-XXXXXX")
+    round_rect(d, (590, 206, 760, 234), 6, PRIMARY if hl == "lookup" else WHITE, PRIMARY if hl == "lookup" else BORDER)
+    d.text((608, 212), "Подивитися статус", font=font(13, True), fill=WHITE if hl == "lookup" else TEXT)
+    d.text((56, 248), "Сформувати заявку", font=font(18, True), fill=TEXT)
+    boxes["building"] = field(d, 56, 276, 350, 28, "Корпус *", state.get("building", ""), hl == "building")
+    boxes["room"] = field(d, 426, 276, 350, 28, "Кабінет *", state.get("room", ""), hl == "room")
+    boxes["printer"] = field(d, 56, 328, 350, 28, "Модель принтера *", state.get("printer", ""), hl == "printer")
+    boxes["cartridge"] = field(d, 426, 328, 350, 28, "Модель картриджа *", state.get("cartridge", ""), hl == "cartridge")
+    comment_hl = hl == "comment"
+    d.text((56, 382), "Що не так з картриджем", font=font(13, True), fill=TEXT)
+    checks = [
+        (56, "Чорна смужка", "stripe"),
+        (250, "Принтер не бачить картридж", "not_detected"),
+        (530, "Не очищається барабан", "drum"),
+    ]
+    ticked = set(state.get("comments", []))
+    for x, label, key in checks:
+        box = (x, 404, x + 16, 420)
+        fill = HIGHLIGHT if comment_hl else WHITE
+        round_rect(d, box, 3, fill, PRIMARY if key in ticked else BORDER, 2 if comment_hl else 1)
+        if key in ticked:
+            d.line((x + 3, 412, x + 7, 417), fill=TEXT, width=2)
+            d.line((x + 7, 417, x + 13, 407), fill=TEXT, width=2)
+        d.text((x + 22, 404), label, font=font(13), fill=TEXT)
+    boxes["comment"] = (56, 398, 760, 424)
+    boxes["name"] = field(d, 56, 432, 350, 26, "Ім’я", state.get("name", ""), hl == "name")
+    boxes["phone"] = field(d, 426, 432, 350, 26, "Телефон", state.get("phone", ""), hl == "phone", "+380 50 123 45 67")
+    btn = (56, 492, 300, 528)
     round_rect(d, btn, 6, PRIMARY_DARK if hl == "submit" else PRIMARY)
-    d.text((78, 488), "Сформувати заявку", font=font(16, True), fill=WHITE)
+    d.text((78, 500), "Сформувати заявку", font=font(16, True), fill=WHITE)
     boxes["submit"] = btn
     caption_bar(img, state["caption"])
     return img, boxes
@@ -525,8 +542,9 @@ def main() -> None:
         {"caption": "У полі «Корпус» напишіть корпус.", "hl": "building", "building": crg["building"], "hold": 2.6, "point": "building", "click": True},
         {"caption": "У полі «Кабінет» вкажіть кабінет.", "hl": "room", "building": crg["building"], "room": crg["room"], "hold": 2.4, "point": "room", "click": True},
         {"caption": "Вкажіть модель принтера і модель картриджа.", "hl": "printer", "building": crg["building"], "room": crg["room"], "printer": crg["printer"], "cartridge": crg["cartridge"], "hold": 3.0, "point": "printer", "click": True},
-        {"caption": "Ім’я і телефон можна не заповнювати.", "hl": "name", **crg, "hold": 2.6, "point": "name"},
-        {"caption": "Натисніть синю кнопку «Сформувати заявку».", "hl": "submit", **crg, "hold": 2.4, "point": "submit", "click": True},
+        {"caption": "У блоці «Що не так з картриджем» можна відмітити типові проблеми або нічого не обирати.", "hl": "comment", "building": crg["building"], "room": crg["room"], "printer": crg["printer"], "cartridge": crg["cartridge"], "comments": ["stripe"], "hold": 3.2, "point": "comment", "click": True},
+        {"caption": "Ім’я і телефон можна не заповнювати.", "hl": "name", **crg, "comments": ["stripe"], "hold": 2.4, "point": "name"},
+        {"caption": "Натисніть синю кнопку «Сформувати заявку».", "hl": "submit", **crg, "comments": ["stripe"], "hold": 2.4, "point": "submit", "click": True},
         {"caption": "Відкриється бланк з номером, QR-кодом і тим самим кодом під QR.", "success": "CRG-2026-XXXXXX", "hold": 3.8, "point": None, "move": False},
     ]
     render_story(draw_cartridge, cartridge_story, OUT / "cartridge.mp4", OUT / "cartridge.jpg")
