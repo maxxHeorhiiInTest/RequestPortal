@@ -21,7 +21,7 @@ $validDate = static function (mixed $value): string {
 };
 
 $filters = [
-    'status'    => in_array($_GET['status'] ?? '', rp_statuses(), true) ? (string) $_GET['status'] : '',
+    'status'    => in_array($_GET['status'] ?? '', rp_feedback_statuses(), true) ? (string) $_GET['status'] : '',
     'q'         => rp_clean_string($_GET['q'] ?? '', 120),
     'date_from' => $validDate($_GET['date_from'] ?? ''),
     'date_to'   => $validDate($_GET['date_to'] ?? ''),
@@ -95,7 +95,7 @@ rp_header(__('admin.section.feedback'), 'admin');
             <label for="status"><?= e(__('admin.filter.status')) ?></label>
             <select id="status" name="status">
                 <option value=""><?= e(__('common.all')) ?></option>
-                <?php foreach (rp_statuses() as $status): ?>
+                <?php foreach (rp_feedback_statuses() as $status): ?>
                     <option value="<?= e($status) ?>" <?= $filters['status'] === $status ? 'selected' : '' ?>>
                         <?= e(rp_status_label($status)) ?>
                     </option>

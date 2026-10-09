@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS rp_requests (
     department VARCHAR(255) NOT NULL DEFAULT '',
     requester_name VARCHAR(160) NOT NULL,
     requester_contact VARCHAR(255) NOT NULL,
-    status ENUM('new', 'in_progress', 'done', 'rejected') NOT NULL DEFAULT 'new',
+    status ENUM('new', 'in_progress', 'done', 'rejected', 'blocked') NOT NULL DEFAULT 'new',
     admin_note TEXT NULL,
     lang CHAR(2) NOT NULL DEFAULT 'uk',
     ip_address VARCHAR(45) NULL,

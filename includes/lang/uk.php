@@ -197,6 +197,7 @@ return [
     'status.in_progress'     => 'В роботі',
     'status.done'            => 'Виконано',
     'status.rejected'        => 'Відхилено',
+    'status.blocked'         => 'Заблоковано',
 
     // Адмінка
     'admin.login_title'      => 'Вхід для адміністратора',

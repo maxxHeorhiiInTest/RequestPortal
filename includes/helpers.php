@@ -494,6 +494,18 @@ function rp_statuses(): array
     return ['new', 'in_progress', 'done', 'rejected'];
 }
 
+/** Extra column on the site-request admin board only. */
+function rp_request_board_statuses(): array
+{
+    return array_merge(rp_statuses(), ['blocked']);
+}
+
+/** @return list<string> */
+function rp_feedback_statuses(): array
+{
+    return ['new', 'in_progress', 'done', 'rejected'];
+}
+
 /** @return list<string> */
 function rp_it_statuses(): array
 {

@@ -21,7 +21,7 @@ $stmt = $pdo->query(
 $requests = $stmt->fetchAll();
 
 $columns = [];
-foreach (rp_statuses() as $status) {
+foreach (rp_request_board_statuses() as $status) {
     $columns[$status] = [];
 }
 foreach ($requests as $request) {

@@ -197,6 +197,7 @@ If you need to send a cartridge for refill, tap “Cartridge refill”.\n\n## Ho
     'status.in_progress'     => 'In progress',
     'status.done'            => 'Done',
     'status.rejected'        => 'Rejected',
+    'status.blocked'         => 'Blocked',
 
     // Admin
     'admin.login_title'      => 'Administrator login',

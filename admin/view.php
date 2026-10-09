@@ -33,7 +33,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         rp_redirect('admin/view.php?id=' . $id);
     }
 
-    $newStatus = in_array($_POST['status'] ?? '', rp_statuses(), true)
+    $allowedStatuses = rp_request_board_statuses();
+    $newStatus = in_array($_POST['status'] ?? '', $allowedStatuses, true)
         ? (string) $_POST['status']
         : (string) $request['status'];
     $newNote   = rp_clean_string($_POST['admin_note'] ?? '', 5000);
@@ -190,8 +191,14 @@ rp_header(__('admin.view_title', (string) $request['public_code']), 'admin');
             <div class="field">
                 <label for="status"><?= e(__('admin.filter.status')) ?></label>
                 <select id="status" name="status">
-                    <?php foreach (rp_statuses() as $status): ?>
-                        <option value="<?= e($status) ?>" <?= (string) $request['status'] === $status ? 'selected' : '' ?>>
+                    <?php
+                    $statusOptions = rp_statuses();
+                    $currentStatus = (string) $request['status'];
+                    if ($currentStatus !== '' && !in_array($currentStatus, $statusOptions, true)) {
+                        $statusOptions[] = $currentStatus;
+                    }
+                    foreach ($statusOptions as $status): ?>
+                        <option value="<?= e($status) ?>" <?= $currentStatus === $status ? 'selected' : '' ?>>
                             <?= e(rp_status_label($status)) ?>
                         </option>
                     <?php endforeach; ?>

@@ -102,7 +102,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         rp_redirect('admin/feedback-view.php?id=' . $id);
     }
 
-    $newStatus = in_array($_POST['status'] ?? '', rp_statuses(), true)
+    $newStatus = in_array($_POST['status'] ?? '', rp_feedback_statuses(), true)
         ? (string) $_POST['status']
         : (string) $feedback['status'];
     $newNote   = rp_clean_string($_POST['admin_note'] ?? '', 5000);
@@ -375,7 +375,7 @@ rp_header(__('admin.feedback.view_title', (string) $feedback['public_code']), 'a
             <div class="field">
                 <label for="status"><?= e(__('admin.filter.status')) ?></label>
                 <select id="status" name="status">
-                    <?php foreach (rp_statuses() as $status): ?>
+                    <?php foreach (rp_feedback_statuses() as $status): ?>
                         <option value="<?= e($status) ?>" <?= (string) $feedback['status'] === $status ? 'selected' : '' ?>>
                             <?= e(rp_status_label($status)) ?>
                         </option>

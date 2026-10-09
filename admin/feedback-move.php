@@ -33,7 +33,7 @@ $id     = (int) ($data['id'] ?? 0);
 $status = is_string($data['status'] ?? null) ? (string) $data['status'] : '';
 $token  = $data['csrf_token'] ?? null;
 
-if (!rp_csrf_valid($token) || $id <= 0 || !in_array($status, rp_statuses(), true)) {
+if (!rp_csrf_valid($token) || $id <= 0 || !in_array($status, rp_feedback_statuses(), true)) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'invalid']);
     exit;

@@ -21,7 +21,7 @@ $stmt = $pdo->query(
 $items = $stmt->fetchAll();
 
 $columns = [];
-foreach (rp_statuses() as $status) {
+foreach (rp_feedback_statuses() as $status) {
     $columns[$status] = [];
 }
 foreach ($items as $item) {

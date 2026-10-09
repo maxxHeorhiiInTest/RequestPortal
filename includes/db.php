@@ -97,7 +97,7 @@ function rp_schema(): array
                 department VARCHAR(255) NOT NULL DEFAULT \'\',
                 requester_name VARCHAR(160) NOT NULL,
                 requester_contact VARCHAR(255) NOT NULL,
-                status ENUM(\'new\', \'in_progress\', \'done\', \'rejected\') NOT NULL DEFAULT \'new\',
+                status ENUM(\'new\', \'in_progress\', \'done\', \'rejected\', \'blocked\') NOT NULL DEFAULT \'new\',
                 admin_note TEXT NULL,
                 lang CHAR(2) NOT NULL DEFAULT \'uk\',
                 ip_address VARCHAR(45) NULL,
@@ -359,6 +359,13 @@ function rp_ensure_schema(PDO $pdo): void
         $pdo->exec($ddl);
     }
     rp_ensure_columns($pdo);
+    rp_ensure_enum_values(
+        $pdo,
+        RP_TABLE_REQUESTS,
+        'status',
+        rp_request_board_statuses(),
+        'new'
+    );
     $done = true;
 }
 
@@ -367,6 +374,50 @@ function rp_table_has_column(PDO $pdo, string $table, string $column): bool
     $stmt = $pdo->query('SHOW COLUMNS FROM `' . $table . '` LIKE ' . $pdo->quote($column));
 
     return (bool) $stmt->fetch();
+}
+
+/** @return list<string> */
+function rp_column_enum_values(PDO $pdo, string $table, string $column): array
+{
+    $stmt = $pdo->query('SHOW COLUMNS FROM `' . $table . '` LIKE ' . $pdo->quote($column));
+    $row  = $stmt->fetch();
+    $type = (string) ($row['Type'] ?? '');
+    if (!preg_match('/^enum\((.*)\)$/i', $type, $match)) {
+        return [];
+    }
+    $values = str_getcsv($match[1], ',', "'");
+
+    return array_values(array_filter($values, static fn (mixed $value): bool => is_string($value) && $value !== ''));
+}
+
+/**
+ * Expand an ENUM column so every listed value is accepted (existing rows keep theirs).
+ *
+ * @param list<string> $values
+ */
+function rp_ensure_enum_values(PDO $pdo, string $table, string $column, array $values, string $default): void
+{
+    $current = rp_column_enum_values($pdo, $table, $column);
+    if ($current === []) {
+        return;
+    }
+    $merged = $current;
+    foreach ($values as $value) {
+        if (!in_array($value, $merged, true)) {
+            $merged[] = $value;
+        }
+    }
+    if ($merged === $current) {
+        return;
+    }
+    $quoted = [];
+    foreach ($merged as $value) {
+        $quoted[] = $pdo->quote($value);
+    }
+    $pdo->exec(
+        'ALTER TABLE `' . $table . '` MODIFY COLUMN `' . $column . '` ENUM('
+        . implode(', ', $quoted) . ') NOT NULL DEFAULT ' . $pdo->quote($default)
+    );
 }
 
 /** Add columns introduced after the initial install. */

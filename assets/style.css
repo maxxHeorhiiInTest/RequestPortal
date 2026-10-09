@@ -568,6 +568,7 @@ table.list tr:hover td { background: #fafcfe; }
 .badge.status-in_progress { background: #fdf4e3; border-color: #e8cd96; color: #85601d; }
 .badge.status-done { background: var(--success-bg); border-color: var(--success-border); color: #23603c; }
 .badge.status-rejected { background: var(--error-bg); border-color: var(--error-border); color: #8c2f2f; }
+.badge.status-blocked { background: #ece8f4; border-color: #c5bdd6; color: #4d3f66; }
 .badge.status-draft { background: #f0f2f4; border-color: #cfd6dd; color: #5b6570; }
 .badge.status-planned { background: #e8f1fb; border-color: #b6d0ea; color: #1d4d85; }
 .badge.status-preparing { background: #fdf4e3; border-color: #e8cd96; color: #85601d; }
