@@ -15,6 +15,11 @@ function rp_cartridge_status_url(string $code): string
     return rp_absolute_url('cartridge.php?code=' . rawurlencode($code));
 }
 
+function rp_cartridge_edit_url(int $id): string
+{
+    return rp_absolute_url('admin/cartridge-view.php?id=' . $id);
+}
+
 /** @return list<string> */
 function rp_cartridge_comment_preset_ids(): array
 {
@@ -171,7 +176,7 @@ function rp_cartridge_render_pdf(array $row, string $absPath): void
 
     $code   = (string) ($row['public_code'] ?? '');
     $status = rp_cartridge_status_label((string) ($row['status'] ?? ''));
-    $url    = rp_cartridge_status_url($code);
+    $url    = rp_cartridge_edit_url((int) ($row['id'] ?? 0));
     $date   = rp_format_datetime((string) ($row['created_at'] ?? ''));
     $uni    = __('home.logo_alt');
     $title  = __('cartridge.blank_title');

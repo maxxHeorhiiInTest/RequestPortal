@@ -545,7 +545,7 @@ def main() -> None:
         {"caption": "У блоці «Що не так з картриджем» можна відмітити типові проблеми або нічого не обирати.", "hl": "comment", "building": crg["building"], "room": crg["room"], "printer": crg["printer"], "cartridge": crg["cartridge"], "comments": ["stripe"], "hold": 3.2, "point": "comment", "click": True},
         {"caption": "Ім’я і телефон можна не заповнювати.", "hl": "name", **crg, "comments": ["stripe"], "hold": 2.4, "point": "name"},
         {"caption": "Натисніть синю кнопку «Сформувати заявку».", "hl": "submit", **crg, "comments": ["stripe"], "hold": 2.4, "point": "submit", "click": True},
-        {"caption": "Відкриється бланк з номером, QR-кодом і тим самим кодом під QR.", "success": "CRG-2026-XXXXXX", "hold": 3.8, "point": None, "move": False},
+        {"caption": "Відкриється бланк з номером і QR-кодом на сторінку редагування заявки.", "success": "CRG-2026-XXXXXX", "hold": 3.8, "point": None, "move": False},
     ]
     render_story(draw_cartridge, cartridge_story, OUT / "cartridge.mp4", OUT / "cartridge.jpg")
 

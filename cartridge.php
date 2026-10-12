@@ -146,7 +146,7 @@ rp_header(__('cartridge.title'));
 
 if ($ticket !== null):
     $code = (string) $ticket['public_code'];
-    $url  = rp_cartridge_status_url($code);
+    $url  = rp_cartridge_edit_url((int) $ticket['id']);
     ?>
     <div class="card cartridge-blank">
         <div class="page-head no-print">
@@ -191,8 +191,11 @@ if ($ticket !== null):
             <?php endif; ?>
         </dl>
         <div class="cartridge-qr">
-            <?= rp_cartridge_qr_svg($url, 168) ?>
+            <a class="cartridge-qr-link" href="<?= e($url) ?>">
+                <?= rp_cartridge_qr_svg($url, 168) ?>
+            </a>
             <div class="cartridge-qr-code"><?= e($code) ?></div>
+            <div class="cartridge-qr-hint"><?= e(__('cartridge.qr_hint')) ?></div>
         </div>
         <p class="no-print cartridge-actions">
             <button type="button" class="btn btn-primary" onclick="window.print()"><?= e(__('cartridge.print')) ?></button>

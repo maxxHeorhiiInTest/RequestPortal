@@ -20,14 +20,14 @@ if ($row === null) {
 
 $rel  = (string) ($row['pdf_path'] ?? '');
 $path = $rel !== '' ? rp_resolve_cartridge_pdf($rel) : null;
-if ($path === null) {
-    try {
-        $rel = rp_cartridge_write_pdf($row);
-        $upd = rp_db()->prepare('UPDATE ' . RP_TABLE_CARTRIDGE . ' SET pdf_path = :pdf, updated_at = NOW() WHERE id = :id');
-        $upd->execute(['pdf' => $rel, 'id' => (int) $row['id']]);
-        $path = rp_resolve_cartridge_pdf($rel);
-    } catch (Throwable $exception) {
-        error_log('[request-portal] cartridge pdf rebuild failed: ' . $exception->getMessage());
+try {
+    $rel = rp_cartridge_write_pdf($row);
+    $upd = rp_db()->prepare('UPDATE ' . RP_TABLE_CARTRIDGE . ' SET pdf_path = :pdf, updated_at = NOW() WHERE id = :id');
+    $upd->execute(['pdf' => $rel, 'id' => (int) $row['id']]);
+    $path = rp_resolve_cartridge_pdf($rel);
+} catch (Throwable $exception) {
+    error_log('[request-portal] cartridge pdf rebuild failed: ' . $exception->getMessage());
+    if ($path === null) {
         rp_abort(404, 'File is missing');
     }
 }

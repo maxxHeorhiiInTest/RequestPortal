@@ -9,8 +9,10 @@ require dirname(__DIR__) . '/includes/bootstrap.php';
 require dirname(__DIR__) . '/includes/auth.php';
 require dirname(__DIR__) . '/includes/layout.php';
 
+$next = rp_admin_safe_next($_POST['next'] ?? $_GET['next'] ?? null);
+
 if (rp_admin_user() !== null) {
-    rp_redirect(rp_admin_home());
+    rp_redirect($next ?? rp_admin_home());
 }
 
 $error    = '';
@@ -28,7 +30,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } elseif ($username === '' || $password === '') {
         $error = __('admin.login_failed');
     } elseif (rp_attempt_login($username, $password)) {
-        rp_redirect(rp_admin_home());
+        rp_redirect($next ?? rp_admin_home());
     } else {
         $error = __('admin.login_failed');
     }
@@ -45,6 +47,9 @@ rp_header(__('admin.login_title'), 'admin');
 
     <form method="post" action="<?= e(rp_url('admin/login.php')) ?>">
         <?= rp_csrf_field() ?>
+        <?php if ($next !== null): ?>
+            <input type="hidden" name="next" value="<?= e($next) ?>">
+        <?php endif; ?>
         <div class="field">
             <label for="username"><?= e(__('admin.username')) ?></label>
             <input type="text" id="username" name="username" maxlength="80" autocomplete="username"

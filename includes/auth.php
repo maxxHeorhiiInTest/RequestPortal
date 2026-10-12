@@ -94,6 +94,24 @@ function rp_admin_home(): string
     return rp_admin_can('requests') ? 'admin/index.php' : 'admin/it-board.php';
 }
 
+/** Internal admin path from a login ?next= value, or null if it is not safe. */
+function rp_admin_safe_next(mixed $raw): ?string
+{
+    if (!is_string($raw) || $raw === '') {
+        return null;
+    }
+    $raw = trim($raw);
+    if ($raw === '' || str_contains($raw, "\0") || str_contains($raw, '://') || str_starts_with($raw, '//')) {
+        return null;
+    }
+    $raw = ltrim($raw, '/');
+    if (!preg_match('#^admin/[a-z0-9._-]+\.php(?:\?[a-zA-Z0-9&=._-]+)?$#', $raw)) {
+        return null;
+    }
+
+    return $raw;
+}
+
 function rp_admin_script_section(string $script): ?string
 {
     if (in_array($script, ['login.php', 'logout.php', 'inbox-poll.php'], true)) {
@@ -138,7 +156,11 @@ function rp_require_admin(?string $section = null): array
 {
     $admin = rp_admin_user();
     if ($admin === null) {
-        rp_redirect('admin/login.php');
+        $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+        $query  = (string) ($_SERVER['QUERY_STRING'] ?? '');
+        $next   = $script !== '' ? 'admin/' . $script . ($query !== '' ? '?' . $query : '') : '';
+        $safe   = rp_admin_safe_next($next);
+        rp_redirect($safe !== null ? 'admin/login.php?next=' . rawurlencode($safe) : 'admin/login.php');
     }
 
     if ($section === null) {
