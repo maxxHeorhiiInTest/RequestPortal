@@ -1008,6 +1008,26 @@ body.board-page main.wrap { max-width: 1400px; }
     text-align: center;
     margin: 24px 0 8px;
 }
+.cartridge-codes {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 28px 48px;
+    margin: 20px 0 8px;
+}
+.cartridge-codes .cartridge-qr { margin: 0; }
+.cartridge-barcode {
+    text-align: center;
+    min-width: 220px;
+}
+.cartridge-barcode svg { display: block; margin: 0 auto; }
+.cartridge-barcode-value {
+    margin-top: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
 .cartridge-qr-link {
     display: inline-block;
     line-height: 0;
@@ -1028,10 +1048,26 @@ body.board-page main.wrap { max-width: 1400px; }
 .cartridge-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 @media print {
+    @page { size: A4 portrait; margin: 8mm; }
     .topbar, .footer, .admin-tabs, .admin-subtabs, .no-print, .page-tip { display: none !important; }
-    body { background: #fff; }
-    main.wrap { max-width: none; padding: 0; }
-    .card { box-shadow: none; border: 0; }
-    .cartridge-blank, .cartridge-firm-sheet { page-break-inside: avoid; }
+    html, body { background: #fff; height: auto; }
+    main.wrap { max-width: none; padding: 0; margin: 0; }
+    .card { box-shadow: none; border: 0; padding: 0; margin: 0; }
+    .cartridge-firm-sheet { break-inside: avoid; page-break-inside: avoid; }
+    .cartridge-blank {
+        break-inside: auto;
+        page-break-inside: auto;
+        page-break-after: avoid;
+    }
+    .cartridge-blank .cartridge-letterhead { margin-bottom: 8px; gap: 10px; }
+    .cartridge-blank .cartridge-letterhead img { height: 32px; }
+    .cartridge-blank .cartridge-code { font-size: 20px; margin: 0 0 8px; }
+    .cartridge-blank dl.details dt { margin-top: 6px; font-size: 11px; }
+    .cartridge-blank dl.details dd { margin-top: 1px; font-size: 13px; }
+    .cartridge-blank .cartridge-codes { margin: 10px 0 0; gap: 16px 32px; }
+    .cartridge-blank .cartridge-qr svg { width: 108px; height: 108px; }
+    .cartridge-blank .cartridge-qr-code { font-size: 16px; margin-top: 6px; }
+    .cartridge-blank .cartridge-qr-hint { display: none; }
+    .cartridge-blank .cartridge-barcode svg { width: 200px; height: 42px; }
 }
 

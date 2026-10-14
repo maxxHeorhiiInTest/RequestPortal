@@ -219,6 +219,7 @@ CREATE TABLE IF NOT EXISTS rp_cartridge_requests (
     room VARCHAR(80) NOT NULL,
     printer_model VARCHAR(160) NOT NULL,
     cartridge_model VARCHAR(160) NOT NULL,
+    barcode VARCHAR(80) NOT NULL DEFAULT '',
     requester_name VARCHAR(160) NOT NULL DEFAULT '',
     requester_phone VARCHAR(80) NOT NULL DEFAULT '',
     comment TEXT NULL,

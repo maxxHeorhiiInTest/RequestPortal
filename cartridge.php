@@ -15,6 +15,7 @@ $values = [
     'room'             => '',
     'printer_model'    => '',
     'cartridge_model'  => '',
+    'barcode'          => '',
     'name'             => '',
     'phone'            => '',
     'comment_keys'     => [],
@@ -48,6 +49,7 @@ if ($isPost && $action === 'create') {
     $values['room']            = rp_clean_string($_POST['room'] ?? '', 80);
     $values['printer_model']   = rp_clean_string($_POST['printer_model'] ?? '', 160);
     $values['cartridge_model'] = rp_clean_string($_POST['cartridge_model'] ?? '', 160);
+    $values['barcode']         = rp_cartridge_clean_barcode((string) ($_POST['barcode'] ?? ''));
     $values['name']            = rp_clean_string($_POST['name'] ?? '', 160);
     $values['phone']           = rp_clean_string($_POST['phone'] ?? '', 80);
     $values['comment_keys']    = rp_cartridge_posted_comment_keys($_POST['comment_keys'] ?? []);
@@ -68,6 +70,9 @@ if ($isPost && $action === 'create') {
     }
     if ($values['cartridge_model'] === '') {
         $errors[] = __('cartridge.error.cartridge');
+    }
+    if (trim((string) ($_POST['barcode'] ?? '')) !== '' && $values['barcode'] === '') {
+        $errors[] = __('cartridge.error.barcode');
     }
     if ($values['phone'] !== '' && !rp_phone_looks_valid($values['phone'])) {
         $errors[] = __('error.phone_invalid');
@@ -91,9 +96,9 @@ if ($isPost && $action === 'create') {
                 try {
                     $stmt = $pdo->prepare(
                         'INSERT INTO ' . RP_TABLE_CARTRIDGE . '
-                            (public_code, building, room, printer_model, cartridge_model,
+                            (public_code, building, room, printer_model, cartridge_model, barcode,
                              requester_name, requester_phone, comment, status, lang, ip_address, created_at, updated_at)
-                         VALUES (:code, :building, :room, :printer, :cartridge,
+                         VALUES (:code, :building, :room, :printer, :cartridge, :barcode,
                                  :name, :phone, :comment, \'new\', :lang, :ip, NOW(), NOW())'
                     );
                     $stmt->execute([
@@ -102,6 +107,7 @@ if ($isPost && $action === 'create') {
                         'room'      => $values['room'],
                         'printer'   => $values['printer_model'],
                         'cartridge' => $values['cartridge_model'],
+                        'barcode'   => $values['barcode'],
                         'name'      => $values['name'],
                         'phone'     => $values['phone'],
                         'comment'   => $comment,
@@ -147,6 +153,7 @@ rp_header(__('cartridge.title'));
 if ($ticket !== null):
     $code = (string) $ticket['public_code'];
     $url  = rp_cartridge_edit_url((int) $ticket['id']);
+    $scan = rp_cartridge_scan_code($ticket);
     ?>
     <div class="card cartridge-blank">
         <div class="page-head no-print">
@@ -169,6 +176,8 @@ if ($ticket !== null):
             <dd><?= e((string) $ticket['printer_model']) ?></dd>
             <dt><?= e(__('cartridge.cartridge')) ?></dt>
             <dd><?= e((string) $ticket['cartridge_model']) ?></dd>
+            <dt><?= e(__('cartridge.barcode')) ?></dt>
+            <dd><?= e($scan) ?></dd>
             <dt><?= e(__('cartridge.date')) ?></dt>
             <dd><?= e(rp_format_datetime((string) $ticket['created_at'])) ?></dd>
             <dt><?= e(__('cartridge.status')) ?></dt>
@@ -190,12 +199,19 @@ if ($ticket !== null):
                 <dd><?= e((string) $ticket['comment']) ?></dd>
             <?php endif; ?>
         </dl>
-        <div class="cartridge-qr">
-            <a class="cartridge-qr-link" href="<?= e($url) ?>">
-                <?= rp_cartridge_qr_svg($url, 168) ?>
-            </a>
-            <div class="cartridge-qr-code"><?= e($code) ?></div>
-            <div class="cartridge-qr-hint"><?= e(__('cartridge.qr_hint')) ?></div>
+        <div class="cartridge-codes">
+            <div class="cartridge-qr">
+                <a class="cartridge-qr-link" href="<?= e($url) ?>">
+                    <?= rp_cartridge_qr_svg($url, 132) ?>
+                </a>
+                <div class="cartridge-qr-code"><?= e($code) ?></div>
+                <div class="cartridge-qr-hint"><?= e(__('cartridge.qr_hint')) ?></div>
+            </div>
+            <div class="cartridge-barcode">
+                <?= rp_code128_svg($scan, 240, 52) ?>
+                <div class="cartridge-barcode-value"><?= e($scan) ?></div>
+                <div class="cartridge-qr-hint"><?= e(__('cartridge.barcode_hint')) ?></div>
+            </div>
         </div>
         <p class="no-print cartridge-actions">
             <button type="button" class="btn btn-primary" onclick="window.print()"><?= e(__('cartridge.print')) ?></button>
@@ -272,6 +288,12 @@ if ($ticket !== null):
                     <input type="text" id="cartridge_model" name="cartridge_model" maxlength="160" required
                            value="<?= e($values['cartridge_model']) ?>">
                 </div>
+            </div>
+            <div class="field">
+                <label for="barcode"><?= e(__('cartridge.barcode')) ?></label>
+                <input type="text" id="barcode" name="barcode" maxlength="80" autocomplete="off"
+                       value="<?= e($values['barcode']) ?>">
+                <small><?= e(__('cartridge.barcode_field_hint')) ?></small>
             </div>
             <fieldset class="field">
                 <legend><?= e(__('cartridge.comment_legend')) ?></legend>

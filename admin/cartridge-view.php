@@ -105,6 +105,8 @@ rp_header(__('admin.cartridge.view_title', $code), 'admin');
         <dd><?= e((string) $ticket['printer_model']) ?></dd>
         <dt><?= e(__('cartridge.cartridge')) ?></dt>
         <dd><?= e((string) $ticket['cartridge_model']) ?></dd>
+        <dt><?= e(__('cartridge.barcode')) ?></dt>
+        <dd><?= e(rp_cartridge_scan_code($ticket)) ?></dd>
         <dt><?= e(__('cartridge.name')) ?></dt>
         <dd><?= e(trim((string) $ticket['requester_name']) !== '' ? (string) $ticket['requester_name'] : __('common.none')) ?></dd>
         <dt><?= e(__('cartridge.phone')) ?></dt>

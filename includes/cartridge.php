@@ -20,6 +20,111 @@ function rp_cartridge_edit_url(int $id): string
     return rp_absolute_url('admin/cartridge-view.php?id=' . $id);
 }
 
+function rp_cartridge_clean_barcode(string $raw): string
+{
+    $value = trim(preg_replace('/\s+/u', ' ', $raw) ?? $raw);
+    $value = rp_clean_string($value, 80);
+    if ($value === '') {
+        return '';
+    }
+    if (preg_match('/[^\x20-\x7E]/', $value) === 1) {
+        return '';
+    }
+
+    return $value;
+}
+
+/** User-entered barcode, or the request number when the field is empty. */
+function rp_cartridge_scan_code(array $row): string
+{
+    $entered = rp_cartridge_clean_barcode((string) ($row['barcode'] ?? ''));
+
+    return $entered !== '' ? $entered : (string) ($row['public_code'] ?? '');
+}
+
+/**
+ * Code 128-B modules (true = black), or empty if the text cannot be encoded.
+ *
+ * @return list<bool>
+ */
+function rp_code128_modules(string $text): array
+{
+    if ($text === '' || strlen($text) > 80 || preg_match('/[^\x20-\x7E]/', $text) === 1) {
+        return [];
+    }
+    $patterns = [
+        '11011001100', '11001101100', '11001100110', '10010011000', '10010001100',
+        '10001001100', '10011001000', '10011000100', '10001100100', '11001001000',
+        '11001000100', '11000100100', '10110011100', '10011011100', '10011001110',
+        '10111001100', '10011101100', '10011100110', '11001110010', '11001011100',
+        '11001001110', '11011100100', '11001110100', '11101101110', '11101001100',
+        '11100101100', '11100100110', '11101100100', '11100110100', '11100110010',
+        '11011011000', '11011000110', '11000110110', '10100011000', '10001011000',
+        '10001000110', '10110001000', '10001101000', '10001100010', '11010001000',
+        '11000101000', '11000100010', '10110111000', '10110001110', '10001101110',
+        '10111011000', '10111000110', '10001110110', '11101110110', '11010001110',
+        '11000101110', '11011101000', '11011100010', '11011101110', '11101011000',
+        '11101000110', '11100010110', '11101101000', '11101100010', '11100011010',
+        '11101111010', '11001000010', '11110001010', '10100110000', '10100001100',
+        '10010110000', '10010000110', '10000101100', '10000100110', '10110010000',
+        '10110000100', '10011010000', '10011000010', '10000110100', '10000110010',
+        '11000010010', '11001010000', '11110111010', '11000010100', '10001111010',
+        '10100111100', '10010111100', '10010011110', '10111100100', '10011110100',
+        '10011110010', '11110100100', '11110010100', '11110010010', '11011011110',
+        '11011110110', '11110110110', '10101111000', '10100011110', '10001011110',
+        '10111101000', '10111100010', '11110101000', '11110100010', '10111011110',
+        '10111101110', '11101011110', '11110101110', '11010000100', '11010010000',
+        '11010011100', '1100011101011',
+    ];
+    $values = [104];
+    $len    = strlen($text);
+    for ($i = 0; $i < $len; $i++) {
+        $values[] = ord($text[$i]) - 32;
+    }
+    $sum = 104;
+    for ($i = 1, $n = count($values); $i < $n; $i++) {
+        $sum += $values[$i] * $i;
+    }
+    $values[] = $sum % 103;
+    $values[] = 106;
+    $modules  = [];
+    for ($i = 0; $i < 10; $i++) {
+        $modules[] = false;
+    }
+    foreach ($values as $value) {
+        $pattern = $patterns[$value] ?? '';
+        $count   = strlen($pattern);
+        for ($i = 0; $i < $count; $i++) {
+            $modules[] = $pattern[$i] === '1';
+        }
+    }
+    for ($i = 0; $i < 10; $i++) {
+        $modules[] = false;
+    }
+
+    return $modules;
+}
+
+function rp_code128_svg(string $text, int $width = 240, int $height = 52): string
+{
+    $modules = rp_code128_modules($text);
+    $n       = count($modules);
+    if ($n < 1) {
+        return '';
+    }
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' . $n . ' ' . $height . '"'
+        . ' width="' . $width . '" height="' . $height . '" shape-rendering="crispEdges" role="img"'
+        . ' aria-label="' . e(__('cartridge.barcode_label')) . '">';
+    $svg .= '<rect width="' . $n . '" height="' . $height . '" fill="#ffffff"/>';
+    foreach ($modules as $x => $on) {
+        if ($on) {
+            $svg .= '<rect x="' . (int) $x . '" y="0" width="1" height="' . $height . '" fill="#111111"/>';
+        }
+    }
+
+    return $svg . '</svg>';
+}
+
 /** @return list<string> */
 function rp_cartridge_comment_preset_ids(): array
 {
@@ -212,11 +317,13 @@ function rp_cartridge_render_pdf(array $row, string $absPath): void
     $pdf->Cell(178, 9, $code, 0, 1, 'L');
     $pdf->SetTextColor(17, 17, 17);
 
+    $scan = rp_cartridge_scan_code($row);
     $fields = [
         __('cartridge.building')  => (string) ($row['building'] ?? ''),
         __('cartridge.room')      => (string) ($row['room'] ?? ''),
         __('cartridge.printer')   => (string) ($row['printer_model'] ?? ''),
         __('cartridge.cartridge') => (string) ($row['cartridge_model'] ?? ''),
+        __('cartridge.barcode')   => $scan,
         __('cartridge.date')      => $date,
         __('cartridge.status')    => $status,
     ];
@@ -233,50 +340,63 @@ function rp_cartridge_render_pdf(array $row, string $absPath): void
         $fields[__('cartridge.comment')] = $comment;
     }
 
-    $y = 62;
+    $y = 58;
     foreach ($fields as $label => $value) {
-        $pdf->SetFont('DejaVu', '', 9);
+        $pdf->SetFont('DejaVu', '', 8);
         $pdf->SetTextColor(107, 118, 128);
         $pdf->SetXY(16, $y);
-        $pdf->Cell(178, 5, $label, 0, 1, 'L');
-        $pdf->SetFont('DejaVu', 'B', 12);
+        $pdf->Cell(178, 4, $label, 0, 1, 'L');
+        $pdf->SetFont('DejaVu', 'B', 11);
         $pdf->SetTextColor(17, 17, 17);
         $pdf->SetX(16);
-        $pdf->MultiCell(178, 6, $value !== '' ? $value : '—', 0, 'L');
-        $y = $pdf->GetY() + 3;
+        $pdf->MultiCell(178, 5, $value !== '' ? $value : '—', 0, 'L');
+        $y = $pdf->GetY() + 2;
     }
 
-    $modules = rp_cartridge_qr_modules($url);
-    $n       = count($modules);
-    $qrSize  = 42.0;
-    $x0      = (210 - $qrSize) / 2;
-    $y0 = $y + 8;
-    if ($y0 < 198) {
-        $y0 = 198;
+    $qrModules = rp_cartridge_qr_modules($url);
+    $qrN       = count($qrModules);
+    $barModules = rp_code128_modules($scan);
+    $barN      = count($barModules);
+    $qrSize    = 36.0;
+    $barH      = 22.0;
+    $barW      = 92.0;
+    $y0        = max($y + 6, 210);
+    if ($y0 + $qrSize + 16 > 285) {
+        $y0 = 285 - $qrSize - 16;
     }
-    if ($y0 + $qrSize + 18 > 287) {
-        $y0 = 287 - $qrSize - 18;
-    }
-    if ($n > 0) {
-        $cell = $qrSize / $n;
+    $qrX = 28.0;
+    $barX = 210 - 16 - $barW;
+    if ($qrN > 0) {
+        $cell = $qrSize / $qrN;
         $pdf->SetFillColor(17, 17, 17);
         $pdf->SetDrawColor(17, 17, 17);
-        foreach ($modules as $my => $line) {
+        foreach ($qrModules as $my => $line) {
             foreach ($line as $mx => $on) {
                 if ($on) {
-                    $pdf->Rect($x0 + $mx * $cell, $y0 + $my * $cell, $cell + 0.05, $cell + 0.05, 'F');
+                    $pdf->Rect($qrX + $mx * $cell, $y0 + $my * $cell, $cell + 0.05, $cell + 0.05, 'F');
                 }
             }
         }
     }
+    if ($barN > 0) {
+        $cell = $barW / $barN;
+        $barY = $y0 + ($qrSize - $barH) / 2;
+        $pdf->SetFillColor(17, 17, 17);
+        foreach ($barModules as $mx => $on) {
+            if ($on) {
+                $pdf->Rect($barX + $mx * $cell, $barY, $cell + 0.02, $barH, 'F');
+            }
+        }
+        $pdf->SetFont('DejaVu', 'B', 9);
+        $pdf->SetTextColor(17, 17, 17);
+        $pdf->SetXY($barX, $barY + $barH + 2);
+        $pdf->Cell($barW, 5, $scan, 0, 0, 'C');
+    }
 
-    $pdf->SetFont('DejaVu', 'B', 16);
-    $pdf->SetXY(16, $y0 + $qrSize + 4);
-    $pdf->Cell(178, 8, $code, 0, 1, 'C');
-    $pdf->SetFont('DejaVu', '', 8);
-    $pdf->SetTextColor(107, 118, 128);
-    $pdf->SetX(16);
-    $pdf->Cell(178, 5, $url, 0, 1, 'C');
+    $pdf->SetFont('DejaVu', 'B', 12);
+    $pdf->SetTextColor(17, 17, 17);
+    $pdf->SetXY(16, $y0 + $qrSize + 3);
+    $pdf->Cell(50, 6, $code, 0, 0, 'L');
 
     $pdf->Output($absPath, 'F');
     } finally {

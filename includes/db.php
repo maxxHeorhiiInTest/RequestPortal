@@ -311,6 +311,7 @@ function rp_schema(): array
                 room VARCHAR(80) NOT NULL,
                 printer_model VARCHAR(160) NOT NULL,
                 cartridge_model VARCHAR(160) NOT NULL,
+                barcode VARCHAR(80) NOT NULL DEFAULT \'\',
                 requester_name VARCHAR(160) NOT NULL DEFAULT \'\',
                 requester_phone VARCHAR(80) NOT NULL DEFAULT \'\',
                 comment TEXT NULL,
@@ -453,6 +454,7 @@ function rp_ensure_columns(PDO $pdo): void
             'deleted_at' => 'DATETIME NULL',
             'deleted_by' => 'VARCHAR(160) NULL',
             'comment'    => 'TEXT NULL',
+            'barcode'    => "VARCHAR(80) NOT NULL DEFAULT ''",
         ],
     ];
 
