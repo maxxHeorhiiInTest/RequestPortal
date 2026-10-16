@@ -248,26 +248,28 @@ def draw_plan(state: dict):
     boxes["department"] = field(d, 426, 256, 350, 32, "Підрозділ / кафедра *", state.get("department", ""), hl == "department")
     boxes["responsible"] = field(d, 56, 316, 350, 32, "Відповідальна особа *", state.get("responsible", ""), hl == "responsible")
     boxes["description"] = field(d, 426, 316, 350, 32, "Короткий опис *", state.get("description", ""), hl == "description")
-    boxes["extra"] = field(d, 56, 376, 720, 32, "Посилання або додаткова інформація", state.get("extra", ""), hl == "extra", "не обов’язково")
+    boxes["extra"] = field(d, 56, 370, 720, 32, "Посилання або додаткова інформація", state.get("extra", ""), hl == "extra", "не обов’язково")
 
-    d.text((56, 436), "Заплановані соцмережі / канали публікації", font=font(13, True), fill=TEXT)
-    channel_box = (56, 458, 760, 508)
+    d.text((56, 422), "Заплановані соцмережі / канали публікації", font=font(13, True), fill=TEXT)
+    channel_box = (56, 444, 760, 490)
     round_rect(d, channel_box, 6, "#fffbeb" if hl == "channels" else WHITE, HIGHLIGHT if hl == "channels" else BORDER, 3 if hl == "channels" else 1)
     selected = set(state.get("channels") or [])
     x = 68
     for name in ("Сайт", "Facebook", "Instagram", "Telegram", "YouTube", "TikTok"):
         mark = name in selected
-        d.rectangle((x, 474, x + 14, 488), outline=PRIMARY, width=2, fill=PRIMARY if mark else WHITE)
+        d.rectangle((x, 458, x + 14, 472), outline=PRIMARY, width=2, fill=PRIMARY if mark else WHITE)
         if mark:
-            d.line((x + 3, 481, x + 6, 486), fill=WHITE, width=2)
-            d.line((x + 6, 486, x + 11, 476), fill=WHITE, width=2)
-        d.text((x + 18, 472), name, font=font(12), fill=TEXT)
+            d.line((x + 3, 465, x + 6, 470), fill=WHITE, width=2)
+            d.line((x + 6, 470, x + 11, 460), fill=WHITE, width=2)
+        d.text((x + 18, 456), name, font=font(12), fill=TEXT)
         x += 114
     boxes["channels"] = channel_box
 
-    btn = (56, 528, 270, 568)
+    boxes["files"] = field(d, 56, 500, 350, 32, "Фото, відео або документи", state.get("files", "Обрати файли"), hl == "files")
+
+    btn = (56, 550, 270, 590)
     round_rect(d, btn, 6, PRIMARY_DARK if hl == "submit" else PRIMARY)
-    d.text((78, 538), "Надіслати анонс", font=font(16, True), fill=WHITE)
+    d.text((78, 560), "Надіслати анонс", font=font(16, True), fill=WHITE)
     boxes["submit"] = btn
     caption_bar(img, state["caption"])
     return img, boxes
@@ -506,6 +508,7 @@ def main() -> None:
         {"caption": "Вкажіть підрозділ і відповідальну особу.", "hl": "responsible", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "department": "Кафедра футболу", "responsible": "Іван Петренко", "hold": 3.0, "point": "responsible", "click": True},
         {"caption": "Коротко опишіть подію своїми словами.", "hl": "description", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "department": "Кафедра футболу", "responsible": "Іван Петренко", "description": "Відкриті змагання для студентів.", "hold": 3.0, "point": "description", "click": True},
         {"caption": "Позначте канали: сайт, Facebook, Instagram, Telegram, YouTube, TikTok.", "hl": "channels", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "department": "Кафедра футболу", "responsible": "Іван Петренко", "description": "Відкриті змагання для студентів.", "channels": ["Сайт", "Facebook", "Telegram"], "hold": 3.0, "point": "channels", "click": True},
+        {"caption": "У полі «Фото, відео або документи» можна додати файли. Це не обов’язково.", "hl": "files", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "department": "Кафедра футболу", "responsible": "Іван Петренко", "description": "Відкриті змагання для студентів.", "channels": ["Сайт", "Facebook", "Telegram"], "hold": 2.6, "point": "files"},
         {"caption": "Натисніть синю кнопку «Надіслати анонс».", "hl": "submit", "title": "Кубок університету з футболу", "when": "12.10.2026, 10:00", "department": "Кафедра футболу", "responsible": "Іван Петренко", "description": "Відкриті змагання для студентів.", "channels": ["Сайт", "Facebook", "Telegram"], "hold": 2.4, "point": "submit", "click": True},
         {"caption": "З’явиться підтвердження. Анонс збережеться як чернетка до перевірки.", "success": True, "hold": 3.8, "point": None, "move": False},
     ]

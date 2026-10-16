@@ -131,6 +131,7 @@ function rp_admin_script_section(string $script): ?string
         'plan-edit.php',
         'plan-inbox.php',
         'plan-delete.php',
+        'plan-download.php',
         'plan-holiday-hide.php',
         'plan-holiday-restore.php',
     ], true)) {

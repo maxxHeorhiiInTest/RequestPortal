@@ -8,6 +8,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/includes/bootstrap.php';
 require dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/content.php';
+require dirname(__DIR__) . '/includes/uploads.php';
 require dirname(__DIR__) . '/includes/layout.php';
 
 $admin = rp_require_admin();
@@ -140,6 +141,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 $pageTitle = $existing ? __('content.edit') : __('content.new');
 $minLocal  = (new DateTimeImmutable('now', rp_app_timezone()))->format('Y-m-d\TH:i');
 $lockMin   = !$existing || !rp_utc_is_past((string) $existing['event_at']);
+$files     = $existing ? rp_content_files($pdo, $id) : [];
 rp_header($pageTitle, 'admin');
 ?>
 <div class="card">
@@ -241,6 +243,33 @@ rp_header($pageTitle, 'admin');
     </form>
 </div>
 <?php if ($existing): ?>
+<div class="card">
+    <h2><?= e(__('admin.section.files')) ?></h2>
+    <?php if (!$files): ?>
+        <p class="muted"><?= e(__('admin.no_files')) ?></p>
+    <?php else: ?>
+        <ul class="files">
+            <?php foreach ($files as $file): ?>
+                <?php $exists = rp_resolve_stored_file((string) $file['stored_path']) !== null; ?>
+                <li>
+                    <?php if ($exists): ?>
+                        <a href="<?= e(rp_url('admin/plan-download.php?id=' . (int) $file['id'])) ?>">
+                            <?= e((string) $file['original_name']) ?>
+                        </a>
+                    <?php else: ?>
+                        <?= e((string) $file['original_name']) ?>
+                        <span class="badge status-rejected"><?= e(__('admin.file_missing')) ?></span>
+                    <?php endif; ?>
+                    <span class="meta">
+                        <?= e(rp_format_bytes((int) $file['size_bytes'])) ?> ·
+                        <?= e((string) $file['mime_type']) ?> ·
+                        <?= e(rp_format_datetime((string) $file['created_at'])) ?>
+                    </span>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
+</div>
     <?php rp_admin_trash_box('plan', $id, $deleted); ?>
 <?php endif; ?>
 <?php rp_footer();

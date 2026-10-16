@@ -7,6 +7,7 @@ const RP_TABLE_FILES    = 'rp_request_files';
 const RP_TABLE_HISTORY  = 'rp_request_history';
 const RP_TABLE_ADMINS   = 'rp_admin_users';
 const RP_TABLE_CONTENT  = 'rp_content_items';
+const RP_TABLE_CONTENT_FILES = 'rp_content_files';
 const RP_TABLE_FEEDBACK = 'rp_feedback';
 const RP_TABLE_FEEDBACK_FILES = 'rp_feedback_files';
 const RP_TABLE_FEEDBACK_HISTORY = 'rp_feedback_history';
@@ -177,6 +178,21 @@ function rp_schema(): array
                 PRIMARY KEY (id),
                 KEY idx_event_at (event_at),
                 KEY idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_CONTENT_FILES => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_CONTENT_FILES . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                content_id INT UNSIGNED NOT NULL,
+                original_name VARCHAR(255) NOT NULL,
+                stored_path VARCHAR(255) NOT NULL,
+                mime_type VARCHAR(120) NOT NULL,
+                size_bytes BIGINT UNSIGNED NOT NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_content (content_id),
+                CONSTRAINT fk_content_files FOREIGN KEY (content_id)
+                    REFERENCES ' . RP_TABLE_CONTENT . ' (id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
 
         RP_TABLE_FEEDBACK => '
@@ -517,6 +533,17 @@ function rp_request_files(PDO $pdo, int $requestId): array
         'SELECT * FROM ' . RP_TABLE_FILES . ' WHERE request_id = :id ORDER BY id'
     );
     $stmt->execute(['id' => $requestId]);
+
+    return $stmt->fetchAll();
+}
+
+/** @return list<array<string,mixed>> */
+function rp_content_files(PDO $pdo, int $contentId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT * FROM ' . RP_TABLE_CONTENT_FILES . ' WHERE content_id = :id ORDER BY id'
+    );
+    $stmt->execute(['id' => $contentId]);
 
     return $stmt->fetchAll();
 }

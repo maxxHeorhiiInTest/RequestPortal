@@ -7,11 +7,15 @@ declare(strict_types=1);
 
 require __DIR__ . '/includes/bootstrap.php';
 require_once __DIR__ . '/includes/content.php';
+require __DIR__ . '/includes/uploads.php';
 require __DIR__ . '/includes/layout.php';
 
 $pdo    = rp_db();
 $errors = [];
 $sent   = isset($_GET['sent']) && is_string($_GET['sent']) && $_GET['sent'] !== '';
+
+$maxFiles = (int) rp_config('uploads.max_files', 10);
+$maxSize  = rp_effective_file_limit();
 
 $values = [
     'title'        => '',
@@ -23,7 +27,12 @@ $values = [
     'channels'     => [],
 ];
 
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+$isPost         = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
+$postOverflowed = $isPost && empty($_POST) && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0;
+
+if ($postOverflowed) {
+    $errors[] = __('error.post_too_large', rp_format_bytes(rp_php_upload_limit()));
+} elseif ($isPost) {
     if (!rp_csrf_valid($_POST['csrf_token'] ?? null)) {
         $errors[] = __('error.csrf');
     }
@@ -61,6 +70,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $errors[] = __('content.error.responsible');
     }
 
+    $files  = rp_collect_uploads();
+    $errors = array_merge($errors, rp_validate_uploads($files));
+
     $rateLimit = (int) rp_config('security.rate_limit_per_hour', 0);
     if (!$errors && $rateLimit > 0 && rp_recent_guest_content_count($pdo, rp_client_ip()) >= $rateLimit) {
         $errors[] = __('error.rate_limit');
@@ -69,8 +81,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!$errors && $eventUtc !== null) {
         $channelsJson = json_encode($values['channels'], JSON_UNESCAPED_UNICODE);
         $extra        = $values['extra_info'] !== '' ? $values['extra_info'] : null;
+        $stored       = [];
 
         try {
+            $pdo->beginTransaction();
+
             $stmt = $pdo->prepare(
                 'INSERT INTO ' . RP_TABLE_CONTENT . '
                     (title, event_at, department, description, responsible, extra_info,
@@ -91,6 +106,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'created_by'  => 'guest:' . rp_client_ip(),
             ]);
 
+            $contentId = (int) $pdo->lastInsertId();
+            $stored    = rp_store_content_uploads($pdo, $contentId, 'PLAN-' . $contentId, $files);
+
+            $pdo->commit();
             unset($_SESSION['rp_csrf']);
 
             $channelNames = [];
@@ -100,17 +119,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
             rp_telegram_notify('plan', [
                 __('content.field.title')       => $values['title'],
-                __('content.field.when')        => $eventUtc !== null ? rp_format_datetime($eventUtc) : $values['event_at'],
+                __('content.field.when')        => rp_format_datetime($eventUtc),
                 __('content.field.department')  => $values['department'],
                 __('content.field.responsible') => $values['responsible'],
                 __('content.field.description') => $values['description'],
                 __('content.field.extra')       => $values['extra_info'],
                 __('content.field.channels')    => implode(', ', $channelNames),
+                __('form.files')                => $stored !== [] ? (string) count($stored) : '',
                 __('content.field.status')      => rp_content_status_label('draft'),
             ]);
 
             rp_redirect('planAdd.php?sent=1');
         } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            rp_delete_stored_files($stored);
             error_log('[request-portal] public content save failed: ' . $exception->getMessage());
             $errors[] = rp_config('app.debug', false)
                 ? $exception->getMessage()
@@ -151,7 +175,7 @@ rp_header(__('content.public.title'));
             </div>
         <?php endif; ?>
 
-        <form method="post" action="<?= e(rp_url('planAdd.php')) ?>">
+        <form method="post" action="<?= e(rp_url('planAdd.php')) ?>" enctype="multipart/form-data">
             <?= rp_csrf_field() ?>
             <p class="honeypot">
                 <label>Website<input type="text" name="rp_hp" tabindex="-1" autocomplete="off"></label>
@@ -207,11 +231,32 @@ rp_header(__('content.public.title'));
                 </div>
             </fieldset>
 
+            <div class="field">
+                <label for="attachments"><?= e(__('form.files')) ?></label>
+                <input type="file" id="attachments" name="attachments[]" multiple
+                       accept="<?= e(rp_accept_attribute()) ?>">
+                <small><?= e(__('form.files_hint', $maxFiles, rp_format_bytes($maxSize), implode(', ', rp_allowed_extensions()))) ?></small>
+                <small id="file-count" class="muted"></small>
+            </div>
+
             <p class="muted"><?= e(__('common.required_hint')) ?></p>
             <button type="submit" class="btn btn-primary"><?= e(__('common.submit_plan')) ?></button>
             <a class="btn" href="<?= e(rp_url('index.php')) ?>"><?= e(__('common.back')) ?></a>
         </form>
     </div>
+
+    <script>
+        (function () {
+            var input = document.getElementById('attachments');
+            var label = document.getElementById('file-count');
+            if (!input || !label) return;
+            input.addEventListener('change', function () {
+                label.textContent = input.files.length
+                    ? <?= json_encode(__('form.files_selected'), JSON_UNESCAPED_UNICODE) ?>.replace('%d', input.files.length)
+                    : '';
+            });
+        })();
+    </script>
 <?php endif; ?>
 
 <?php rp_footer();
