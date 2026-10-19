@@ -8,7 +8,18 @@ const RP_LOGIN_LOCK_SECONDS = 300;
 /** @return list<string> */
 function rp_admin_roles(): array
 {
-    return ['full', 'it'];
+    return ['full', 'it', 'rental', 'rental_manager', 'rental_schedule'];
+}
+
+/** @return list<string> */
+function rp_rental_roles(): array
+{
+    return ['rental', 'rental_manager', 'rental_schedule'];
+}
+
+function rp_is_rental_role(?string $role): bool
+{
+    return $role !== null && in_array($role, rp_rental_roles(), true);
 }
 
 /**
@@ -63,11 +74,15 @@ function rp_admin_can(string $section): bool
     if ($admin === null) {
         return false;
     }
-    if ($admin['role'] === 'full') {
-        return true;
+    $role = (string) ($admin['role'] ?? '');
+    if (rp_is_rental_role($role)) {
+        return $section === 'rental';
+    }
+    if ($role === 'full') {
+        return $section !== 'rental';
     }
 
-    return $admin['role'] === 'it' && $section === 'it';
+    return $role === 'it' && $section === 'it';
 }
 
 function rp_admin_is_full(?array $admin = null): bool
@@ -91,6 +106,10 @@ function rp_require_full_admin(): array
 
 function rp_admin_home(): string
 {
+    if (rp_admin_can('rental') && !rp_admin_can('requests')) {
+        return 'admin/rental.php';
+    }
+
     return rp_admin_can('requests') ? 'admin/index.php' : 'admin/it-board.php';
 }
 
@@ -148,6 +167,9 @@ function rp_admin_script_section(string $script): ?string
     }
     if ($script === 'stats.php') {
         return 'stats';
+    }
+    if ($script === 'rental.php' || str_starts_with($script, 'rental-')) {
+        return 'rental';
     }
 
     return 'full';

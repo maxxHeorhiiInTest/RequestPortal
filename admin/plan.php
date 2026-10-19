@@ -8,7 +8,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/includes/bootstrap.php';
 require dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/content.php';
-require dirname(__DIR__) . '/includes/holidays.php';
+require_once dirname(__DIR__) . '/includes/holidays.php';
 require dirname(__DIR__) . '/includes/layout.php';
 
 rp_require_admin();

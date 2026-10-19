@@ -17,6 +17,19 @@ const RP_TABLE_IT = 'rp_it_tickets';
 const RP_TABLE_IT_HISTORY = 'rp_it_ticket_history';
 const RP_TABLE_CARTRIDGE = 'rp_cartridge_requests';
 const RP_TABLE_CARTRIDGE_HISTORY = 'rp_cartridge_history';
+const RP_TABLE_RENTAL_ROOMS = 'rp_rental_rooms';
+const RP_TABLE_RENTAL_TARIFFS = 'rp_rental_tariffs';
+const RP_TABLE_RENTAL_HOLIDAY_RATES = 'rp_rental_holiday_rates';
+const RP_TABLE_RENTAL_CLIENTS = 'rp_rental_clients';
+const RP_TABLE_RENTAL_DEALS = 'rp_rental_deals';
+const RP_TABLE_RENTAL_SESSIONS = 'rp_rental_sessions';
+const RP_TABLE_RENTAL_RECEIPTS = 'rp_rental_receipts';
+const RP_TABLE_RENTAL_CLASSES = 'rp_rental_classes';
+const RP_TABLE_RENTAL_BLOCKS = 'rp_rental_blocks';
+const RP_TABLE_RENTAL_MONTHS = 'rp_rental_schedule_months';
+const RP_TABLE_RENTAL_APPROVALS = 'rp_rental_approvals';
+const RP_TABLE_RENTAL_REFUNDS = 'rp_rental_refunds';
+const RP_TABLE_RENTAL_AUDIT = 'rp_rental_audit';
 const RP_VISIT_DEDUP_MINUTES = 30;
 const RP_VISIT_RETENTION_DAYS = 90;
 
@@ -362,6 +375,230 @@ function rp_schema(): array
                 CONSTRAINT fk_cartridge_history FOREIGN KEY (request_id)
                     REFERENCES ' . RP_TABLE_CARTRIDGE . ' (id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_ROOMS => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_ROOMS . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                slug VARCHAR(80) NOT NULL,
+                building VARCHAR(20) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                room_number VARCHAR(40) NULL,
+                type VARCHAR(40) NOT NULL DEFAULT \'hall\',
+                area_m2 DECIMAL(8,2) NULL,
+                description TEXT NULL,
+                is_active TINYINT(1) NOT NULL DEFAULT 1,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uniq_rental_room_slug (slug),
+                KEY idx_rental_building (building)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_TARIFFS => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_TARIFFS . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                room_id INT UNSIGNED NOT NULL,
+                min_participants INT UNSIGNED NOT NULL DEFAULT 1,
+                max_participants INT UNSIGNED NULL,
+                price DECIMAL(12,2) NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_rental_tariff_room (room_id),
+                CONSTRAINT fk_rental_tariff_room FOREIGN KEY (room_id)
+                    REFERENCES ' . RP_TABLE_RENTAL_ROOMS . ' (id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_HOLIDAY_RATES => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_HOLIDAY_RATES . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                room_id INT UNSIGNED NOT NULL,
+                holiday_date DATE NOT NULL,
+                price DECIMAL(12,2) NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uniq_rental_holiday_rate (room_id, holiday_date),
+                CONSTRAINT fk_rental_holiday_room FOREIGN KEY (room_id)
+                    REFERENCES ' . RP_TABLE_RENTAL_ROOMS . ' (id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_CLIENTS => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_CLIENTS . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                type ENUM(\'person\', \'fop\', \'org\') NOT NULL DEFAULT \'person\',
+                name VARCHAR(255) NOT NULL,
+                phone VARCHAR(80) NOT NULL,
+                email VARCHAR(255) NULL,
+                contact_person VARCHAR(160) NULL,
+                tax_id VARCHAR(32) NULL,
+                comment TEXT NULL,
+                created_by VARCHAR(160) NOT NULL,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_rental_client_phone (phone),
+                KEY idx_rental_client_name (name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_DEALS => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_DEALS . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                public_code VARCHAR(20) NOT NULL,
+                client_id INT UNSIGNED NOT NULL,
+                created_by VARCHAR(160) NOT NULL,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                total_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+                pay_deadline DATETIME NOT NULL,
+                payment_status ENUM(\'unpaid\', \'paid\', \'expired\', \'cancelled\') NOT NULL DEFAULT \'unpaid\',
+                paid_at DATETIME NULL,
+                paid_by VARCHAR(160) NULL,
+                paid_amount DECIMAL(12,2) NULL,
+                contract_signed TINYINT(1) NOT NULL DEFAULT 0,
+                contract_signed_at DATETIME NULL,
+                contract_signed_by VARCHAR(160) NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uniq_rental_deal_code (public_code),
+                KEY idx_rental_deal_client (client_id),
+                KEY idx_rental_deal_status (payment_status),
+                KEY idx_rental_deal_deadline (pay_deadline),
+                CONSTRAINT fk_rental_deal_client FOREIGN KEY (client_id)
+                    REFERENCES ' . RP_TABLE_RENTAL_CLIENTS . ' (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_APPROVALS => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_APPROVALS . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                room_id INT UNSIGNED NOT NULL,
+                starts_at DATETIME NOT NULL,
+                ends_at DATETIME NOT NULL,
+                status ENUM(\'pending\', \'approved\', \'rejected\') NOT NULL DEFAULT \'pending\',
+                requested_by VARCHAR(160) NOT NULL,
+                requested_at DATETIME NOT NULL,
+                decided_by VARCHAR(160) NULL,
+                decided_at DATETIME NULL,
+                note VARCHAR(500) NULL,
+                PRIMARY KEY (id),
+                KEY idx_rental_approval_room (room_id, starts_at),
+                KEY idx_rental_approval_status (status),
+                CONSTRAINT fk_rental_approval_room FOREIGN KEY (room_id)
+                    REFERENCES ' . RP_TABLE_RENTAL_ROOMS . ' (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_SESSIONS => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_SESSIONS . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                deal_id INT UNSIGNED NOT NULL,
+                room_id INT UNSIGNED NOT NULL,
+                starts_at DATETIME NOT NULL,
+                ends_at DATETIME NOT NULL,
+                hours DECIMAL(5,2) NOT NULL,
+                participants INT UNSIGNED NULL,
+                hourly_price DECIMAL(12,2) NOT NULL,
+                amount DECIMAL(12,2) NOT NULL,
+                status ENUM(\'hold\', \'booked\', \'cancelled\', \'no_show\') NOT NULL DEFAULT \'hold\',
+                approval_id INT UNSIGNED NULL,
+                cancelled_at DATETIME NULL,
+                cancelled_by VARCHAR(160) NULL,
+                cancel_reason VARCHAR(80) NULL,
+                refund_eligible TINYINT(1) NOT NULL DEFAULT 0,
+                PRIMARY KEY (id),
+                KEY idx_rental_session_room_time (room_id, starts_at, ends_at),
+                KEY idx_rental_session_deal (deal_id),
+                KEY idx_rental_session_status (status),
+                CONSTRAINT fk_rental_session_deal FOREIGN KEY (deal_id)
+                    REFERENCES ' . RP_TABLE_RENTAL_DEALS . ' (id),
+                CONSTRAINT fk_rental_session_room FOREIGN KEY (room_id)
+                    REFERENCES ' . RP_TABLE_RENTAL_ROOMS . ' (id),
+                CONSTRAINT fk_rental_session_approval FOREIGN KEY (approval_id)
+                    REFERENCES ' . RP_TABLE_RENTAL_APPROVALS . ' (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_RECEIPTS => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_RECEIPTS . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                deal_id INT UNSIGNED NOT NULL,
+                original_name VARCHAR(255) NOT NULL,
+                stored_path VARCHAR(255) NOT NULL,
+                mime_type VARCHAR(120) NOT NULL,
+                size_bytes BIGINT UNSIGNED NOT NULL,
+                created_by VARCHAR(160) NOT NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_rental_receipt_deal (deal_id),
+                CONSTRAINT fk_rental_receipt_deal FOREIGN KEY (deal_id)
+                    REFERENCES ' . RP_TABLE_RENTAL_DEALS . ' (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_CLASSES => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_CLASSES . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                room_id INT UNSIGNED NOT NULL,
+                starts_at DATETIME NOT NULL,
+                ends_at DATETIME NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                created_by VARCHAR(160) NOT NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_rental_class_room_time (room_id, starts_at, ends_at),
+                CONSTRAINT fk_rental_class_room FOREIGN KEY (room_id)
+                    REFERENCES ' . RP_TABLE_RENTAL_ROOMS . ' (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_BLOCKS => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_BLOCKS . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                room_id INT UNSIGNED NOT NULL,
+                starts_at DATETIME NOT NULL,
+                ends_at DATETIME NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                created_by VARCHAR(160) NOT NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_rental_block_room_time (room_id, starts_at, ends_at),
+                CONSTRAINT fk_rental_block_room FOREIGN KEY (room_id)
+                    REFERENCES ' . RP_TABLE_RENTAL_ROOMS . ' (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_MONTHS => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_MONTHS . ' (
+                schedule_month CHAR(7) NOT NULL,
+                confirmed_by VARCHAR(160) NOT NULL,
+                confirmed_at DATETIME NOT NULL,
+                PRIMARY KEY (schedule_month)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_REFUNDS => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_REFUNDS . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                deal_id INT UNSIGNED NOT NULL,
+                amount DECIMAL(12,2) NOT NULL,
+                status ENUM(\'pending\', \'done\') NOT NULL DEFAULT \'pending\',
+                session_ids VARCHAR(500) NOT NULL DEFAULT \'\',
+                created_by VARCHAR(160) NOT NULL,
+                created_at DATETIME NOT NULL,
+                done_by VARCHAR(160) NULL,
+                done_at DATETIME NULL,
+                PRIMARY KEY (id),
+                KEY idx_rental_refund_deal (deal_id),
+                KEY idx_rental_refund_status (status),
+                CONSTRAINT fk_rental_refund_deal FOREIGN KEY (deal_id)
+                    REFERENCES ' . RP_TABLE_RENTAL_DEALS . ' (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+        RP_TABLE_RENTAL_AUDIT => '
+            CREATE TABLE IF NOT EXISTS ' . RP_TABLE_RENTAL_AUDIT . ' (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                action VARCHAR(40) NOT NULL,
+                entity VARCHAR(40) NOT NULL,
+                entity_id INT UNSIGNED NULL,
+                old_value TEXT NULL,
+                new_value TEXT NULL,
+                note TEXT NULL,
+                actor VARCHAR(160) NOT NULL,
+                actor_ip VARCHAR(45) NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_rental_audit_created (created_at),
+                KEY idx_rental_audit_entity (entity, entity_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
     ];
 }
 
@@ -376,6 +613,9 @@ function rp_ensure_schema(PDO $pdo): void
         $pdo->exec($ddl);
     }
     rp_ensure_columns($pdo);
+    if (function_exists('rp_rental_seed_rooms')) {
+        rp_rental_seed_rooms($pdo);
+    }
     rp_ensure_enum_values(
         $pdo,
         RP_TABLE_REQUESTS,

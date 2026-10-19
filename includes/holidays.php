@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+if (function_exists('rp_ukrainian_holiday_defs')) {
+    return;
+}
+
 /**
  * Ukrainian national holidays and commemorative dates for a calendar year.
  *

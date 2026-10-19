@@ -267,3 +267,6 @@ CREATE TABLE IF NOT EXISTS rp_cartridge_history (
     CONSTRAINT fk_cartridge_history FOREIGN KEY (request_id)
         REFERENCES rp_cartridge_requests (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Rental CRM (rp_rental_*): created automatically by includes/db.php rp_schema()
+-- on first request. The 36-room catalog is seeded by includes/rental.php.

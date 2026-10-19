@@ -27,7 +27,7 @@ function rp_header(string $title, string $context = 'public'): void
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title><?= e($title . ' — ' . $appName) ?></title>
-    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=27">
+    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=28">
 </head>
 <body class="<?= e($context) ?><?= in_array($script, ['board.php', 'plan.php', 'feedback-board.php', 'it-board.php'], true) ? ' board-page' : '' ?>">
 <header class="topbar">
@@ -86,6 +86,7 @@ function rp_header(string $title, string $context = 'public'): void
         $isCartridge = in_array($script, ['cartridge.php', 'cartridge-view.php', 'cartridge-print.php'], true);
         $isStats    = $script === 'stats.php';
         $isTrash    = $script === 'trash.php';
+        $isRental   = $script === 'rental.php' || str_starts_with($script, 'rental-');
         require_once __DIR__ . '/content.php';
         $planInbox  = rp_admin_can('plan') ? rp_content_public_draft_count(rp_db()) : 0;
         ?>
@@ -117,6 +118,10 @@ function rp_header(string $title, string $context = 'public'): void
             <?php if (rp_admin_is_full()): ?>
             <a class="admin-tab<?= $isTrash ? ' active' : '' ?>"
                href="<?= e(rp_url('admin/trash.php')) ?>"><?= e(__('admin.section.trash')) ?></a>
+            <?php endif; ?>
+            <?php if (rp_admin_can('rental')): ?>
+            <a class="admin-tab<?= $isRental ? ' active' : '' ?>"
+               href="<?= e(rp_url('admin/rental.php')) ?>"><?= e(__('rental.nav')) ?></a>
             <?php endif; ?>
         </nav>
         <?php if ($isRequests): ?>
@@ -157,6 +162,33 @@ function rp_header(string $title, string $context = 'public'): void
                    href="<?= e(rp_url('admin/cartridge.php')) ?>"><?= e(__('admin.list_title')) ?></a>
                 <a class="admin-tab<?= $script === 'cartridge-print.php' ? ' active' : '' ?>"
                    href="<?= e(rp_url('admin/cartridge-print.php')) ?>"><?= e(__('admin.cartridge.print_firm')) ?></a>
+            </nav>
+        <?php elseif ($isRental): ?>
+            <nav class="admin-subtabs">
+                <a class="admin-tab<?= $script === 'rental.php' ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/rental.php')) ?>"><?= e(__('rental.nav.dash')) ?></a>
+                <a class="admin-tab<?= $script === 'rental-calendar.php' ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/rental-calendar.php')) ?>"><?= e(__('rental.nav.calendar')) ?></a>
+                <a class="admin-tab<?= in_array($script, ['rental-rooms.php', 'rental-room.php'], true) ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/rental-rooms.php')) ?>"><?= e(__('rental.nav.rooms')) ?></a>
+                <?php if (rp_rental_can('clients')): ?>
+                <a class="admin-tab<?= in_array($script, ['rental-clients.php', 'rental-client.php'], true) ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/rental-clients.php')) ?>"><?= e(__('rental.nav.clients')) ?></a>
+                <a class="admin-tab<?= in_array($script, ['rental-deals.php', 'rental-deal.php'], true) ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/rental-deals.php')) ?>"><?= e(__('rental.nav.deals')) ?></a>
+                <a class="admin-tab<?= $script === 'rental-refunds.php' ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/rental-refunds.php')) ?>"><?= e(__('rental.nav.refunds')) ?></a>
+                <?php endif; ?>
+                <?php if (rp_rental_can('approve') || rp_rental_can('deals')): ?>
+                <a class="admin-tab<?= $script === 'rental-approvals.php' ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/rental-approvals.php')) ?>"><?= e(__('rental.nav.approvals')) ?></a>
+                <?php endif; ?>
+                <?php if (rp_rental_can('users')): ?>
+                <a class="admin-tab<?= $script === 'rental-users.php' ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/rental-users.php')) ?>"><?= e(__('rental.nav.users')) ?></a>
+                <a class="admin-tab<?= $script === 'rental-audit.php' ? ' active' : '' ?>"
+                   href="<?= e(rp_url('admin/rental-audit.php')) ?>"><?= e(__('rental.nav.audit')) ?></a>
+                <?php endif; ?>
             </nav>
         <?php endif; ?>
     <?php endif; ?>

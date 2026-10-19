@@ -3,7 +3,7 @@
  * CLI helper to create an administrator or reset a password, for when
  * install.php has already been deleted.
  *
- *   php tools/admin_user.php <username> <password> [full|it]
+ *   php tools/admin_user.php <username> <password> [full|it|rental|rental_manager|rental_schedule]
  */
 
 declare(strict_types=1);
@@ -21,15 +21,15 @@ $password = $argv[2] ?? '';
 $role     = $argv[3] ?? '';
 
 if (!preg_match('/^[A-Za-z0-9._-]{3,80}$/', $username) || strlen($password) < 10) {
-    fwrite(STDERR, "Usage: php tools/admin_user.php <username> <password> [full|it]\n"
+    fwrite(STDERR, "Usage: php tools/admin_user.php <username> <password> [full|it|rental|rental_manager|rental_schedule]\n"
         . "  username: 3-80 chars of A-Z a-z 0-9 . _ -\n"
         . "  password: at least 10 characters\n"
-        . "  role:     full (default) or it\n");
+        . "  role:     full (default), it, rental, rental_manager, rental_schedule\n");
     exit(1);
 }
 
 if ($role !== '' && !in_array($role, rp_admin_roles(), true)) {
-    fwrite(STDERR, "Unknown role «{$role}». Use full or it.\n");
+    fwrite(STDERR, "Unknown role «{$role}». Use full, it, rental, rental_manager or rental_schedule.\n");
     exit(1);
 }
 

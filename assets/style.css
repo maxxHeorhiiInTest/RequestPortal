@@ -1071,3 +1071,19 @@ body.board-page main.wrap { max-width: 1400px; }
     .cartridge-blank .cartridge-barcode svg { width: 200px; height: 42px; }
 }
 
+.rental-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin: 16px 0; }
+.rental-stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.rental-stat.expected { background: #fffbeb; }
+.rental-stat .num { font-size: 20px; font-weight: 700; margin-top: 4px; }
+.rental-cal { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rental-cal th, .rental-cal td { border: 1px solid var(--border); padding: 4px 6px; vertical-align: top; }
+.rental-cal th { background: #f0f3f6; }
+.rental-chip { display: block; border-radius: 4px; padding: 2px 6px; margin: 2px 0; font-size: 12px; }
+.rental-chip.class { background: #e0f2fe; }
+.rental-chip.unpaid { background: #fde68a; }
+.rental-chip.paid { background: #bbf7d0; }
+.rental-chip.block { background: #e5e7eb; }
+.rental-chip.approval { background: #f5d0fe; }
+.rental-chip .kind { display: block; font-size: 10px; text-transform: uppercase; }
+.session-rows .grid-2 { margin-bottom: 8px; }
+

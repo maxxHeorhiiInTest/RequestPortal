@@ -173,3 +173,29 @@ tools/config_crypt.php    CLI: шифрування config.php ↔ config.enc
 * Бекап: дамп бази + тека `storage/uploads`.
 * Вкладення видаляються з БД каскадно разом із заявкою (`ON DELETE CASCADE`), файли на диску — вручну.
 * Для діагностики встановіть `app.debug => true` у `config.php`, після перевірки обов'язково поверніть `false`.
+
+---
+
+## CRM оренди приміщень / Room rental CRM
+
+Окремий модуль адмін-порталу. Юзери заявок (`full`) і IT **не** бачать оренду; юзери оренди **не** бачать заявки.
+
+Ролі: `rental` (керівник), `rental_manager` (менеджер), `rental_schedule` (відповідальний за розклад).
+
+```bash
+php tools/admin_user.php rental.lead 'СКЛАДНИЙ_ПАРОЛЬ' rental
+php tools/admin_user.php rental.manager 'СКЛАДНИЙ_ПАРОЛЬ' rental_manager
+php tools/admin_user.php rental.schedule 'СКЛАДНИЙ_ПАРОЛЬ' rental_schedule
+```
+
+Після входу: `admin/rental.php`. Таблиці `rp_rental_*` створюються автоматично (`rp_ensure_schema`) і заповнюються 36 приміщеннями.
+
+Автоскасування неоплачених угод (без відкритого браузера):
+
+```cron
+*/5 * * * * php /path/to/tools/rental_expire.php
+```
+
+Бекап: `mysqldump` + `storage/uploads` (квитанції в `storage/uploads/rental/`). Відновлення — імпорт дампу і копія тек.
+
+Тести бізнес-правил: `php tools/rental_tests.php`.
