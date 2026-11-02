@@ -198,6 +198,7 @@ rp_header(__('feedback.title'));
             <div class="field">
                 <label for="attachments"><?= e(__('form.files')) ?></label>
                 <input type="file" id="attachments" name="attachments[]" multiple
+                       data-max-files="<?= (int) $maxFiles ?>"
                        accept="<?= e(rp_accept_attribute()) ?>">
                 <small><?= e(__('form.files_hint', $maxFiles, rp_format_bytes($maxSize), implode(', ', rp_allowed_extensions()))) ?></small>
                 <small id="file-count" class="muted"></small>
@@ -258,16 +259,6 @@ rp_header(__('feedback.title'));
     </div>
     <script>
         (function () {
-            var input = document.getElementById('attachments');
-            var label = document.getElementById('file-count');
-            if (input && label) {
-                input.addEventListener('change', function () {
-                    label.textContent = input.files.length
-                        ? <?= json_encode(__('form.files_selected'), JSON_UNESCAPED_UNICODE) ?>.replace('%d', input.files.length)
-                        : '';
-                });
-            }
-
             var form = document.querySelector('form');
             if (!form) return;
             var phone = document.getElementById('phone');

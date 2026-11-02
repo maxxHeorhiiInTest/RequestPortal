@@ -317,6 +317,35 @@ body {
 
 .field small[hidden] { display: none; }
 
+.file-bag {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+.file-bag li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    font-size: 13px;
+}
+.file-bag-remove {
+    flex: 0 0 auto;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+}
+.file-bag-remove:hover { color: var(--text); }
+
 input[type="text"],
 input[type="password"],
 input[type="tel"],

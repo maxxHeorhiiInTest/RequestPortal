@@ -27,7 +27,7 @@ function rp_header(string $title, string $context = 'public'): void
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title><?= e($title . ' — ' . $appName) ?></title>
-    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=28">
+    <link rel="stylesheet" href="<?= e(rp_url('assets/style.css')) ?>?v=29">
 </head>
 <body class="<?= e($context) ?><?= in_array($script, ['board.php', 'plan.php', 'feedback-board.php', 'it-board.php'], true) ? ' board-page' : '' ?>">
 <header class="topbar">
@@ -432,6 +432,96 @@ function rp_footer(): void
         document.addEventListener('DOMContentLoaded', window.rpBindUaPhones);
     } else {
         window.rpBindUaPhones();
+    }
+})();
+</script>
+<script>
+(function () {
+    if (!window.DataTransfer) {
+        return;
+    }
+    var copy = <?= json_encode([
+        'selected' => __('form.files_selected'),
+        'remove'   => __('form.files_remove'),
+    ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?>;
+
+    function fileKey(file) {
+        return [file.name, file.size, file.lastModified].join('\0');
+    }
+
+    function initBag(input) {
+        if (input.getAttribute('data-file-bag') === '1') {
+            return;
+        }
+        input.setAttribute('data-file-bag', '1');
+        var max = parseInt(input.getAttribute('data-max-files') || '10', 10) || 10;
+        var bag = [];
+        var syncing = false;
+        var field = input.closest('.field') || input.parentNode;
+        var list = document.createElement('ul');
+        list.className = 'file-bag';
+        list.hidden = true;
+        input.insertAdjacentElement('afterend', list);
+        var countEl = field ? field.querySelector('#file-count, .file-count') : null;
+
+        function sync() {
+            var dt = new DataTransfer();
+            bag.forEach(function (file) {
+                dt.items.add(file);
+            });
+            syncing = true;
+            input.files = dt.files;
+            syncing = false;
+            list.innerHTML = '';
+            bag.forEach(function (file, index) {
+                var li = document.createElement('li');
+                var name = document.createElement('span');
+                name.textContent = file.name;
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'file-bag-remove';
+                btn.textContent = copy.remove;
+                btn.addEventListener('click', function () {
+                    bag.splice(index, 1);
+                    sync();
+                });
+                li.appendChild(name);
+                li.appendChild(btn);
+                list.appendChild(li);
+            });
+            list.hidden = bag.length === 0;
+            if (countEl) {
+                countEl.textContent = bag.length
+                    ? String(copy.selected).replace('%d', String(bag.length))
+                    : '';
+            }
+        }
+
+        input.addEventListener('change', function () {
+            if (syncing) {
+                return;
+            }
+            Array.prototype.forEach.call(input.files || [], function (file) {
+                if (bag.length >= max) {
+                    return;
+                }
+                var key = fileKey(file);
+                if (bag.some(function (item) { return fileKey(item) === key; })) {
+                    return;
+                }
+                bag.push(file);
+            });
+            sync();
+        });
+    }
+
+    function bindAll() {
+        document.querySelectorAll('input[type="file"][multiple]').forEach(initBag);
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bindAll);
+    } else {
+        bindAll();
     }
 })();
 </script>

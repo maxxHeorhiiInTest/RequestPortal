@@ -85,6 +85,7 @@ If you need to send a cartridge for refill, tap “Cartridge refill”.\n\n## Ho
     'form.files'             => 'Photos, videos or documents',
     'form.files_hint'        => 'Up to %1$d files, %2$s each at most. Allowed formats: %3$s.',
     'form.files_selected'    => 'Files selected: %d',
+    'form.files_remove'      => 'Remove',
 
     // Validation
     'error.form_title'       => 'The request was not submitted. Please fix the following:',

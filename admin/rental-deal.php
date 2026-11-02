@@ -228,7 +228,9 @@ rp_header($deal ? (string) $deal['public_code'] : __('rental.nav.new_deal'), 'ad
             <?= rp_csrf_field() ?>
             <div class="field">
                 <label><?= e(__('rental.attach')) ?></label>
-                <input type="file" name="attachments[]" multiple accept="<?= e(rp_accept_attribute()) ?>">
+                <input type="file" name="attachments[]" multiple
+                       data-max-files="<?= (int) $maxFiles ?>"
+                       accept="<?= e(rp_accept_attribute()) ?>">
                 <small><?= e(__('form.files_hint', $maxFiles, rp_format_bytes($maxSize), implode(', ', rp_allowed_extensions()))) ?></small>
             </div>
             <button class="btn" name="receipt_only" value="1"><?= e(__('rental.attach')) ?></button>
