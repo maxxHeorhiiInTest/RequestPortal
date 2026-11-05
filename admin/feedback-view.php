@@ -345,21 +345,7 @@ rp_header(__('admin.feedback.view_title', (string) $feedback['public_code']), 'a
     <?php else: ?>
         <ul class="files">
             <?php foreach ($files as $file): ?>
-                <?php $exists = rp_resolve_stored_file((string) $file['stored_path']) !== null; ?>
-                <li>
-                    <?php if ($exists): ?>
-                        <a href="<?= e(rp_url('admin/feedback-download.php?id=' . (int) $file['id'])) ?>">
-                            <?= e((string) $file['original_name']) ?>
-                        </a>
-                    <?php else: ?>
-                        <?= e((string) $file['original_name']) ?>
-                        <span class="badge status-rejected"><?= e(__('admin.file_missing')) ?></span>
-                    <?php endif; ?>
-                    <span class="meta">
-                        <?= e(rp_format_bytes((int) $file['size_bytes'])) ?> ·
-                        <?= e((string) $file['mime_type']) ?>
-                    </span>
-                </li>
+                <?php rp_admin_file_li($file, rp_url('admin/feedback-download.php?id=' . (int) $file['id'])); ?>
             <?php endforeach; ?>
         </ul>
     <?php endif; ?>

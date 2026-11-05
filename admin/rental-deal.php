@@ -217,11 +217,7 @@ rp_header($deal ? (string) $deal['public_code'] : __('rental.nav.new_deal'), 'ad
         <h2><?= e(__('rental.receipts')) ?></h2>
         <ul class="files">
             <?php foreach ($receipts as $file): ?>
-                <li>
-                    <a href="<?= e(rp_url('admin/rental-receipt.php?id=' . (int) $file['id'])) ?>">
-                        <?= e((string) $file['original_name']) ?>
-                    </a>
-                </li>
+                <?php rp_admin_file_li($file, rp_url('admin/rental-receipt.php?id=' . (int) $file['id'])); ?>
             <?php endforeach; ?>
         </ul>
         <form method="post" enctype="multipart/form-data">

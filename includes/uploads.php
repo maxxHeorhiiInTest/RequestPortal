@@ -81,8 +81,8 @@ function rp_validate_uploads(array $files): array
         }
 
         if ($finfo instanceof finfo) {
-            $mime = (string) $finfo->file($file['tmp_name']);
-            if ($mime !== '' && !in_array($mime, $allowed[$ext], true)) {
+            $mime = rp_normalize_mime((string) $finfo->file($file['tmp_name']));
+            if ($mime !== '' && !rp_upload_mime_allowed($ext, $mime)) {
                 $errors[] = __('error.file_type', $label);
             }
         }
@@ -271,6 +271,187 @@ function rp_store_content_uploads(PDO $pdo, int $contentId, string $codePrefix, 
     }
 
     return $stored;
+}
+
+/** MIME type without a charset suffix, lowercased. */
+function rp_normalize_mime(string $mime): string
+{
+    $mime = strtolower(trim($mime));
+    if ($mime === '') {
+        return '';
+    }
+    $semi = strpos($mime, ';');
+
+    return $semi === false ? $mime : trim(substr($mime, 0, $semi));
+}
+
+/**
+ * Extra MIME types that real office files often have, beyond config.sample.php.
+ *
+ * @return list<string>
+ */
+function rp_upload_extra_mimes(string $ext): array
+{
+    $ole = [
+        'application/vnd.ms-office',
+        'application/x-ole-storage',
+        'application/cdfv2',
+        'application/cdfv2-encrypted',
+        'application/cdfv2-unknown',
+        'application/octet-stream',
+    ];
+    $ooxml = [
+        'application/zip',
+        'application/x-zip',
+        'application/x-zip-compressed',
+        'application/octet-stream',
+    ];
+
+    return match ($ext) {
+        'xls' => array_merge($ole, [
+            'application/vnd.ms-excel',
+            'application/msexcel',
+            'application/x-msexcel',
+            'application/x-ms-excel',
+            'application/x-excel',
+            'application/excel',
+            'application/xls',
+            'application/x-xls',
+        ]),
+        'xlsx' => array_merge($ooxml, [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel.sheet.macroenabled.12',
+            'application/vnd.ms-excel.sheet.binary.macroenabled.12',
+            'application/haansofthxlsx',
+            'application/wps-office.xlsx',
+        ]),
+        'doc' => array_merge($ole, [
+            'application/msword',
+        ]),
+        'docx' => array_merge($ooxml, [
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ]),
+        'ppt' => array_merge($ole, [
+            'application/vnd.ms-powerpoint',
+        ]),
+        'pptx' => array_merge($ooxml, [
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        ]),
+        default => [],
+    };
+}
+
+function rp_upload_mime_allowed(string $ext, string $mime): bool
+{
+    $mime = rp_normalize_mime($mime);
+    if ($mime === '') {
+        return true;
+    }
+
+    /** @var array<string,list<string>> $allowed */
+    $allowed = (array) rp_config('uploads.allowed', []);
+    $configured = array_map('strtolower', (array) ($allowed[$ext] ?? []));
+    if (in_array($mime, $configured, true)) {
+        return true;
+    }
+
+    return in_array($mime, rp_upload_extra_mimes($ext), true);
+}
+
+function rp_file_kind(string $name): string
+{
+    return match (rp_file_extension($name)) {
+        'xls', 'xlsx' => 'excel',
+        'doc', 'docx' => 'word',
+        'ppt', 'pptx' => 'powerpoint',
+        'pdf' => 'pdf',
+        'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic' => 'image',
+        'mp4', 'mov', 'avi', 'mkv', 'webm' => 'video',
+        'txt', 'csv' => 'text',
+        'zip' => 'archive',
+        default => 'file',
+    };
+}
+
+function rp_file_kind_label(string $name): string
+{
+    return __('file.kind.' . rp_file_kind($name));
+}
+
+function rp_download_content_type(string $originalName, string $storedMime = ''): string
+{
+    $byExt = [
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png'  => 'image/png',
+        'gif'  => 'image/gif',
+        'webp' => 'image/webp',
+        'bmp'  => 'image/bmp',
+        'heic' => 'image/heic',
+        'mp4'  => 'video/mp4',
+        'mov'  => 'video/quicktime',
+        'avi'  => 'video/x-msvideo',
+        'mkv'  => 'video/x-matroska',
+        'webm' => 'video/webm',
+        'pdf'  => 'application/pdf',
+        'doc'  => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls'  => 'application/vnd.ms-excel',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'ppt'  => 'application/vnd.ms-powerpoint',
+        'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'txt'  => 'text/plain',
+        'csv'  => 'text/csv',
+        'zip'  => 'application/zip',
+    ];
+    $ext = rp_file_extension($originalName);
+    if (isset($byExt[$ext])) {
+        return $byExt[$ext];
+    }
+    $stored = rp_normalize_mime($storedMime);
+
+    return $stored !== '' ? $stored : 'application/octet-stream';
+}
+
+/** @param array<string,mixed> $file */
+function rp_admin_file_li(array $file, string $downloadUrl): void
+{
+    $name   = (string) $file['original_name'];
+    $kind   = rp_file_kind($name);
+    $exists = rp_resolve_stored_file((string) $file['stored_path']) !== null;
+
+    echo '<li>';
+    echo '<span class="file-kind file-kind-' . e($kind) . '">' . e(rp_file_kind_label($name)) . '</span> ';
+    if ($exists) {
+        echo '<a href="' . e($downloadUrl) . '">' . e($name) . '</a>';
+    } else {
+        echo e($name);
+        echo ' <span class="badge status-rejected">' . e(__('admin.file_missing')) . '</span>';
+    }
+    echo '<span class="meta">';
+    echo e(rp_format_bytes((int) $file['size_bytes']));
+    if (!empty($file['created_at'])) {
+        echo ' · ' . e(rp_format_datetime((string) $file['created_at']));
+    }
+    echo '</span></li>';
+}
+
+function rp_send_stored_download(string $absPath, string $originalName, string $storedMime = ''): never
+{
+    $downloadName = preg_replace('/[^\p{L}\p{N}\.\-_ ]+/u', '_', $originalName) ?: 'attachment';
+
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    header('Content-Type: ' . rp_download_content_type($originalName, $storedMime));
+    header('Content-Length: ' . (string) filesize($absPath));
+    header('Content-Disposition: attachment; filename="' . str_replace('"', '', $downloadName) . '"; '
+        . "filename*=UTF-8''" . rawurlencode($originalName));
+    header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: private, no-store');
+    readfile($absPath);
+    exit;
 }
 
 /** Absolute path of the uploads directory, without a trailing slash. */
